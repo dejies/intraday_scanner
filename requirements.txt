@@ -1,0 +1,9 @@
+dhanhq
+websocket-client
+pandas
+numpy
+pandas-ta
+streamlit
+requests
+python-dotenv
+pydantic

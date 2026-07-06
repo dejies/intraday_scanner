@@ -19,7 +19,7 @@ class BreakoutScanner:
 
         signals = []
 
-        if len(candles) < 20:
+        if len(candles) < 21:
             return signals
 
         latest = candles[-1]

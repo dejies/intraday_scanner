@@ -153,3 +153,14 @@ class MarketData(BaseService):
         """
 
         return self.symbol_count() == 0
+
+    def add_candles(
+            self,
+            symbol: str,
+            candles: list[Candle],
+    ) -> None:
+
+        symbol = symbol.upper()
+
+        with self._lock:
+            self._candles[symbol].extend(candles)

@@ -11,27 +11,38 @@ from src.services.market_data import MarketData
 from src.scanners.trend import TrendScanner
 from src.scanners.breakout import BreakoutScanner
 from src.scanners.volume import VolumeScanner
-from src.scanners.reversal import ReversalScanner
-from src.scanners.vwap import VWAPScanner
 
 
 class Scanner:
+    """
+    Executes all enabled scanners against the shared MarketData.
+    """
 
-    def __init__(self):
+    def __init__(
+        self,
+        market_data: MarketData,
+    ) -> None:
 
-        self.market_data = MarketData()
+        #
+        # Shared MarketData instance.
+        #
+        self.market_data = market_data
 
+        #
+        # Scanners
+        #
         self.trend = TrendScanner()
 
         self.breakout = BreakoutScanner()
 
         self.volume = VolumeScanner()
 
-        self.reversal = ReversalScanner()
-
-        self.vwap = VWAPScanner()
+    # ------------------------------------------------------------------
 
     def scan(self):
+        """
+        Run all scanners and return trading signals.
+        """
 
         signals = []
 
@@ -39,6 +50,9 @@ class Scanner:
 
             candles = self.market_data.get_candles(symbol)
 
+            #
+            # Need sufficient candle history.
+            #
             if len(candles) < 50:
                 continue
 
@@ -52,14 +66,6 @@ class Scanner:
 
             signals.extend(
                 self.volume.scan(symbol, candles)
-            )
-
-            signals.extend(
-                self.reversal.scan(symbol, candles)
-            )
-
-            signals.extend(
-                self.vwap.scan(symbol, candles)
             )
 
         return signals

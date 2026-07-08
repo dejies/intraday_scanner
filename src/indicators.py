@@ -23,57 +23,79 @@ class IndicatorEngine:
             candles: list[Candle],
     ) -> IndicatorData:
         """
-        Calculate all indicators.
-
-        Version 1:
-            Returns placeholder values.
-
-        Individual indicators will be implemented
-        incrementally.
+        Calculate all technical indicators.
         """
 
         if not candles:
-
             raise ValueError(
                 f"No candles available for {symbol}"
             )
 
         latest = candles[-1]
 
+        #
+        # Trend
+        #
+        ema20 = self._ema(
+            candles,
+            20,
+        )
+
+        ema50 = self._ema(
+            candles,
+            50,
+        )
+
+        #
+        # Momentum
+        #
+        rsi14 = self._rsi(
+            candles,
+            14,
+        )
+
+        #
+        # Intraday
+        #
+        vwap = self._vwap(
+            candles,
+        )
+
+        #
+        # Volume
+        #
+        average_volume20 = self._average_volume(
+            candles,
+            20,
+        )
+
+        relative_volume = self._relative_volume(
+            candles,
+            average_volume20,
+        )
+
         return IndicatorData(
 
             #
-            # Latest Traded Price
+            # Latest Price
             #
             ltp=latest.close,
 
             #
             # Trend
             #
-            ema20=self._ema(
-                candles,
-                20,
-            ),
-
-            ema50=self._ema(
-                candles,
-                50,
-            ),
+            ema20=ema20,
+            ema50=ema50,
 
             #
             # Momentum
             #
-            rsi14=self._rsi(
-                candles,
-                14,
-            ),
+            rsi14=rsi14,
 
             #
             # Intraday
             #
-            vwap=self._vwap(
-                candles,
-            ),
+            vwap=vwap,
 
             #
             # Volatility
@@ -83,13 +105,8 @@ class IndicatorEngine:
             #
             # Volume
             #
-            average_volume20=self._average_volume(
-                candles,
-                20,
-            ),
-            relative_volume=self._relative_volume(
-                candles,
-            ),
+            average_volume20=average_volume20,
+            relative_volume=relative_volume,
         )
 
     def _ema(
@@ -154,23 +171,22 @@ class IndicatorEngine:
     def _relative_volume(
             self,
             candles: list[Candle],
+            average_volume: float | None,
     ) -> float | None:
         """
         Calculate Relative Volume (RVOL).
         """
 
-        average = self._average_volume(
-            candles,
-            20,
-        )
+        if average_volume is None:
+            return None
 
-        if average is None or average == 0:
+        if average_volume == 0:
             return None
 
         current_volume = candles[-1].volume
 
         return round(
-            current_volume / average,
+            current_volume / average_volume,
             2,
         )
 
@@ -186,9 +202,6 @@ class IndicatorEngine:
         if len(candles) < period + 1:
             return None
 
-        #
-        # Only the latest (period + 1) candles are needed.
-        #
         recent = candles[-(period + 1):]
 
         gains = []
@@ -214,9 +227,6 @@ class IndicatorEngine:
         average_gain = sum(gains) / period
         average_loss = sum(losses) / period
 
-        #
-        # Price moved only upwards.
-        #
         if average_loss == 0:
             return 100.0
 

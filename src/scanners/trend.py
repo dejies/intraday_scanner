@@ -14,8 +14,12 @@ from src.models.signal import Signal
 from src.core.constants import SignalType
 from src.core.constants import Strategy
 
+from src.core.config import settings
 
 class TrendScanner:
+
+    def __init__(self):
+        self.settings = settings
     """
     Trend-based scanner.
 
@@ -97,67 +101,258 @@ class TrendScanner:
     # ------------------------------------------------------------------
 
     def _calculate_confidence(
-        self,
-        signal: SignalType,
-        indicators: IndicatorData,
+            self,
+            signal: SignalType,
+            indicators: IndicatorData,
     ) -> int:
         """
         Calculate confidence score.
+
+        Maximum Score = 100
+
+        Trend      : 30
+        VWAP       : 20
+        RSI        : 20
+        RVOL       : 15
+        EMA Gap    : 15
         """
 
-        confidence = 40
+        confidence = 0
 
         #
+        # ----------------------------------------------------------
+        # EMA Trend
+        # ----------------------------------------------------------
+        #
+        confidence += self.settings.confidence_ema_weight
+
+        #
+        # ----------------------------------------------------------
         # VWAP
+        # ----------------------------------------------------------
         #
         if indicators.vwap is not None:
 
-            if (
-                signal == SignalType.BUY
-                and indicators.ltp > indicators.vwap
-            ):
-                confidence += 20
-
-            elif (
-                signal == SignalType.SELL
-                and indicators.ltp < indicators.vwap
-            ):
-                confidence += 20
-
-        #
-        # RSI
-        #
-        if indicators.rsi14 is not None:
-
             if signal == SignalType.BUY:
 
-                if indicators.rsi14 >= 60:
-                    confidence += 20
+                if indicators.ltp > indicators.vwap:
 
-                elif indicators.rsi14 >= 50:
-                    confidence += 10
+                    confidence += (
+                        self.settings.confidence_vwap_weight
+                    )
+
+                elif abs(
+                        indicators.ltp - indicators.vwap
+                ) < (
+                        indicators.vwap * 0.001
+                ):
+
+                    confidence += (
+                            self.settings.confidence_vwap_weight // 2
+                    )
 
             else:
 
-                if indicators.rsi14 <= 40:
-                    confidence += 20
+                if indicators.ltp < indicators.vwap:
 
-                elif indicators.rsi14 <= 50:
-                    confidence += 10
+                    confidence += (
+                        self.settings.confidence_vwap_weight
+                    )
+
+                elif abs(
+                        indicators.ltp - indicators.vwap
+                ) < (
+                        indicators.vwap * 0.001
+                ):
+
+                    confidence += (
+                            self.settings.confidence_vwap_weight // 2
+                    )
 
         #
+        # ----------------------------------------------------------
+        # RSI
+        # ----------------------------------------------------------
+        #
+        if indicators.rsi14 is not None:
+
+            rsi = indicators.rsi14
+
+            if signal == SignalType.BUY:
+
+                if rsi >= self.settings.rsi_buy_strong:
+
+                    confidence += (
+                        self.settings.confidence_rsi_weight
+                    )
+
+                elif rsi >= self.settings.rsi_buy_medium:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.75
+                        )
+                    )
+
+                elif rsi >= self.settings.rsi_buy_weak:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.50
+                        )
+                    )
+
+                elif rsi >= self.settings.rsi_buy_min:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.25
+                        )
+                    )
+
+            else:
+
+                if rsi <= self.settings.rsi_sell_strong:
+
+                    confidence += (
+                        self.settings.confidence_rsi_weight
+                    )
+
+                elif rsi <= self.settings.rsi_sell_medium:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.75
+                        )
+                    )
+
+                elif rsi <= self.settings.rsi_sell_weak:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.50
+                        )
+                    )
+
+                elif rsi <= self.settings.rsi_sell_max:
+
+                    confidence += (
+                        int(
+                            self.settings.confidence_rsi_weight
+                            * 0.25
+                        )
+                    )
+
+        #
+        # ----------------------------------------------------------
         # Relative Volume
+        # ----------------------------------------------------------
         #
         if indicators.relative_volume is not None:
 
-            if indicators.relative_volume >= 2.0:
-                confidence += 20
+            rvol = indicators.relative_volume
 
-            elif indicators.relative_volume >= 1.0:
-                confidence += 10
+            if rvol >= self.settings.rvol_high:
+
+                confidence += (
+                    self.settings.confidence_rvol_weight
+                )
+
+            elif rvol >= self.settings.rvol_medium:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_rvol_weight
+                        * 0.80
+                    )
+                )
+
+            elif rvol >= self.settings.rvol_normal:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_rvol_weight
+                        * 0.60
+                    )
+                )
+
+            elif rvol >= self.settings.rvol_low:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_rvol_weight
+                        * 0.30
+                    )
+                )
 
         #
-        # Cap at 100%
+        # ----------------------------------------------------------
+        # EMA Gap
+        # ----------------------------------------------------------
+        #
+        if (
+                indicators.ema20 is not None
+                and indicators.ema50 is not None
+                and indicators.ema50 != 0
+        ):
+
+            gap = (
+                          abs(
+                              indicators.ema20
+                              - indicators.ema50
+                          )
+                          / indicators.ema50
+                  ) * 100
+
+            if gap >= self.settings.ema_gap_strong:
+
+                confidence += (
+                    self.settings.confidence_ema_gap_weight
+                )
+
+            elif gap >= self.settings.ema_gap_medium:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_ema_gap_weight
+                        * 0.80
+                    )
+                )
+
+            elif gap >= self.settings.ema_gap_normal:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_ema_gap_weight
+                        * 0.60
+                    )
+                )
+
+            elif gap >= self.settings.ema_gap_weak:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_ema_gap_weight
+                        * 0.40
+                    )
+                )
+
+            elif gap >= self.settings.ema_gap_min:
+
+                confidence += (
+                    int(
+                        self.settings.confidence_ema_gap_weight
+                        * 0.20
+                    )
+                )
+
+        #
+        # Clamp to 100%
         #
         return min(confidence, 100)
 

@@ -38,12 +38,6 @@ def main() -> None:
 
     print("Historical data loaded")
 
-    for symbol in market_data.get_symbols():
-        print(
-            symbol,
-            market_data.get_candle_count(symbol),
-        )
-
     #
     # Start WebSocket.
     #

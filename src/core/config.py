@@ -92,6 +92,42 @@ class Settings:
     macd_slow: int
     macd_signal: int
 
+    # -------------------------------------------------------------------------
+    # Confidence Scoring
+    # -------------------------------------------------------------------------
+
+    confidence_ema_weight: int
+    confidence_vwap_weight: int
+    confidence_rsi_weight: int
+    confidence_rvol_weight: int
+    confidence_ema_gap_weight: int
+
+    # RSI
+
+    rsi_buy_strong: int
+    rsi_buy_medium: int
+    rsi_buy_weak: int
+    rsi_buy_min: int
+
+    rsi_sell_strong: int
+    rsi_sell_medium: int
+    rsi_sell_weak: int
+    rsi_sell_max: int
+
+    # RVOL
+
+    rvol_high: float
+    rvol_medium: float
+    rvol_normal: float
+    rvol_low: float
+
+    # EMA Gap
+
+    ema_gap_strong: float
+    ema_gap_medium: float
+    ema_gap_normal: float
+    ema_gap_weak: float
+    ema_gap_min: float
 
 # -----------------------------------------------------------------------------
 # Loader
@@ -296,6 +332,77 @@ def load_settings() -> Settings:
                 )
             ),
         ),
+        # ---------------------------------------------------------------------
+        # Confidence Scoring
+        # ---------------------------------------------------------------------
+
+        confidence_ema_weight=int(
+            os.getenv(
+                "CONFIDENCE_EMA_WEIGHT",
+                "30",
+            )
+        ),
+
+        confidence_vwap_weight=int(
+            os.getenv(
+                "CONFIDENCE_VWAP_WEIGHT",
+                "20",
+            )
+        ),
+
+        confidence_rsi_weight=int(
+            os.getenv(
+                "CONFIDENCE_RSI_WEIGHT",
+                "20",
+            )
+        ),
+
+        confidence_rvol_weight=int(
+            os.getenv(
+                "CONFIDENCE_RVOL_WEIGHT",
+                "15",
+            )
+        ),
+
+        confidence_ema_gap_weight=int(
+            os.getenv(
+                "CONFIDENCE_EMA_GAP_WEIGHT",
+                "15",
+            )
+        ),
+
+        #
+        # RSI
+        #
+
+        rsi_buy_strong=int(os.getenv("RSI_BUY_STRONG", "65")),
+        rsi_buy_medium=int(os.getenv("RSI_BUY_MEDIUM", "55")),
+        rsi_buy_weak=int(os.getenv("RSI_BUY_WEAK", "50")),
+        rsi_buy_min=int(os.getenv("RSI_BUY_MIN", "45")),
+
+        rsi_sell_strong=int(os.getenv("RSI_SELL_STRONG", "35")),
+        rsi_sell_medium=int(os.getenv("RSI_SELL_MEDIUM", "45")),
+        rsi_sell_weak=int(os.getenv("RSI_SELL_WEAK", "50")),
+        rsi_sell_max=int(os.getenv("RSI_SELL_MAX", "55")),
+
+        #
+        # RVOL
+        #
+
+        rvol_high=float(os.getenv("RVOL_HIGH", "2.0")),
+        rvol_medium=float(os.getenv("RVOL_MEDIUM", "1.5")),
+        rvol_normal=float(os.getenv("RVOL_NORMAL", "1.0")),
+        rvol_low=float(os.getenv("RVOL_LOW", "0.7")),
+
+        #
+        # EMA Gap
+        #
+
+        ema_gap_strong=float(os.getenv("EMA_GAP_STRONG", "1.0")),
+        ema_gap_medium=float(os.getenv("EMA_GAP_MEDIUM", "0.7")),
+        ema_gap_normal=float(os.getenv("EMA_GAP_NORMAL", "0.5")),
+        ema_gap_weak=float(os.getenv("EMA_GAP_WEAK", "0.3")),
+        ema_gap_min=float(os.getenv("EMA_GAP_MIN", "0.1")),
     )
 
 

@@ -89,13 +89,12 @@ class Scanner:
             #
             # Trend Scanner.
             #
-            signals.extend(
-                self.trend.scan(
-                    symbol,
-                    candles,
-                    indicators,
-                )
+            trend_signals = self.trend.scan(
+                symbol,
+                candles,
+                indicators,
             )
+            signals.extend(trend_signals)
 
             #
             # Breakout Scanner.

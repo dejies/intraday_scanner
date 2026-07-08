@@ -19,34 +19,34 @@ class TrendScanner:
     """
     Trend-based scanner.
 
-    BUY:
-        EMA20 > EMA50
-        Price > VWAP
-        RSI > 55
+    Primary Trend:
+        EMA20 vs EMA50
 
-    SELL:
-        EMA20 < EMA50
-        Price < VWAP
-        RSI < 45
+    Confirmation:
+        VWAP
+        RSI
+        Relative Volume
+
+    Confidence is calculated from confirmations.
     """
 
+    # ------------------------------------------------------------------
+
     def scan(
-            self,
-            symbol: str,
-            candles: list[Candle],
-            indicators: IndicatorData,
+        self,
+        symbol: str,
+        candles: list[Candle],
+        indicators: IndicatorData,
     ) -> list[Signal]:
 
         signals: list[Signal] = []
 
         #
-        # Need all indicators.
+        # Need EMA values.
         #
         if (
             indicators.ema20 is None
             or indicators.ema50 is None
-            or indicators.vwap is None
-            or indicators.rsi14 is None
         ):
             return signals
 
@@ -55,60 +55,157 @@ class TrendScanner:
         ema20 = indicators.ema20
         ema50 = indicators.ema50
 
-        price = indicators.ltp
-        vwap = indicators.vwap
-        rsi = indicators.rsi14
+        signal_type: SignalType | None = None
 
         #
-        # BUY
+        # Primary trend
         #
-        if (
-            ema20 > ema50
-            and price > vwap
-            and rsi > 55
-        ):
+        if ema20 > ema50:
+            signal_type = SignalType.BUY
 
-            signals.append(
+        elif ema20 < ema50:
+            signal_type = SignalType.SELL
 
-                Signal(
-                    symbol=symbol,
-                    signal=SignalType.BUY,
-                    strategy=Strategy.TREND,
-                    price=price,
-                    confidence=80,
-                    timestamp=latest.timestamp,
-                    message=(
-                        f"EMA20 > EMA50 | "
-                        f"Price > VWAP | "
-                        f"RSI={rsi:.2f}"
-                    ),
-                )
+        else:
+            return signals
+
+        confidence = self._calculate_confidence(
+            signal_type,
+            indicators,
+        )
+
+        message = self._build_message(
+            signal_type,
+            indicators,
+        )
+
+        signals.append(
+
+            Signal(
+                symbol=symbol,
+                signal=signal_type,
+                strategy=Strategy.TREND,
+                price=indicators.ltp,
+                confidence=confidence,
+                timestamp=latest.timestamp,
+                message=message,
             )
-
-        #
-        # SELL
-        #
-        elif (
-            ema20 < ema50
-            and price < vwap
-            and rsi < 45
-        ):
-
-            signals.append(
-
-                Signal(
-                    symbol=symbol,
-                    signal=SignalType.SELL,
-                    strategy=Strategy.TREND,
-                    price=price,
-                    confidence=80,
-                    timestamp=latest.timestamp,
-                    message=(
-                        f"EMA20 < EMA50 | "
-                        f"Price < VWAP | "
-                        f"RSI={rsi:.2f}"
-                    ),
-                )
-            )
+        )
 
         return signals
+
+    # ------------------------------------------------------------------
+
+    def _calculate_confidence(
+        self,
+        signal: SignalType,
+        indicators: IndicatorData,
+    ) -> int:
+        """
+        Calculate confidence score.
+        """
+
+        confidence = 40
+
+        #
+        # VWAP
+        #
+        if indicators.vwap is not None:
+
+            if (
+                signal == SignalType.BUY
+                and indicators.ltp > indicators.vwap
+            ):
+                confidence += 20
+
+            elif (
+                signal == SignalType.SELL
+                and indicators.ltp < indicators.vwap
+            ):
+                confidence += 20
+
+        #
+        # RSI
+        #
+        if indicators.rsi14 is not None:
+
+            if signal == SignalType.BUY:
+
+                if indicators.rsi14 >= 60:
+                    confidence += 20
+
+                elif indicators.rsi14 >= 50:
+                    confidence += 10
+
+            else:
+
+                if indicators.rsi14 <= 40:
+                    confidence += 20
+
+                elif indicators.rsi14 <= 50:
+                    confidence += 10
+
+        #
+        # Relative Volume
+        #
+        if indicators.relative_volume is not None:
+
+            if indicators.relative_volume >= 2.0:
+                confidence += 20
+
+            elif indicators.relative_volume >= 1.0:
+                confidence += 10
+
+        #
+        # Cap at 100%
+        #
+        return min(confidence, 100)
+
+    # ------------------------------------------------------------------
+
+    def _build_message(
+        self,
+        signal: SignalType,
+        indicators: IndicatorData,
+    ) -> str:
+        """
+        Build descriptive signal message.
+        """
+
+        trend = (
+            "EMA20 > EMA50"
+            if signal == SignalType.BUY
+            else "EMA20 < EMA50"
+        )
+
+        parts = [trend]
+
+        if indicators.vwap is not None:
+
+            if signal == SignalType.BUY:
+
+                parts.append(
+                    "Above VWAP"
+                    if indicators.ltp > indicators.vwap
+                    else "Below VWAP"
+                )
+
+            else:
+
+                parts.append(
+                    "Below VWAP"
+                    if indicators.ltp < indicators.vwap
+                    else "Above VWAP"
+                )
+
+        if indicators.rsi14 is not None:
+            parts.append(
+                f"RSI={indicators.rsi14:.2f}"
+            )
+
+        if indicators.relative_volume is not None:
+            parts.append(
+                f"RVOL={indicators.relative_volume:.2f}"
+            )
+
+        return " | ".join(parts)

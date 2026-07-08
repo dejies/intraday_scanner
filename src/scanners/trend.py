@@ -19,8 +19,15 @@ class TrendScanner:
     """
     Trend-based scanner.
 
-    Uses EMA20 and EMA50 from the shared
-    Indicator Engine.
+    BUY:
+        EMA20 > EMA50
+        Price > VWAP
+        RSI > 55
+
+    SELL:
+        EMA20 < EMA50
+        Price < VWAP
+        RSI < 45
     """
 
     def scan(
@@ -29,30 +36,37 @@ class TrendScanner:
             candles: list[Candle],
             indicators: IndicatorData,
     ) -> list[Signal]:
-        """
-        Scan one symbol for trend signals.
-        """
 
         signals: list[Signal] = []
 
         #
-        # Need EMA values.
+        # Need all indicators.
         #
         if (
-                indicators.ema20 is None
-                or indicators.ema50 is None
+            indicators.ema20 is None
+            or indicators.ema50 is None
+            or indicators.vwap is None
+            or indicators.rsi14 is None
         ):
             return signals
+
+        latest = candles[-1]
 
         ema20 = indicators.ema20
         ema50 = indicators.ema50
 
         price = indicators.ltp
+        vwap = indicators.vwap
+        rsi = indicators.rsi14
 
         #
         # BUY
         #
-        if ema20 > ema50:
+        if (
+            ema20 > ema50
+            and price > vwap
+            and rsi > 55
+        ):
 
             signals.append(
 
@@ -62,10 +76,11 @@ class TrendScanner:
                     strategy=Strategy.TREND,
                     price=price,
                     confidence=80,
-                    timestamp=candles[-1].timestamp,
+                    timestamp=latest.timestamp,
                     message=(
-                        f"EMA20 ({ema20:.2f}) "
-                        f"> EMA50 ({ema50:.2f})"
+                        f"EMA20 > EMA50 | "
+                        f"Price > VWAP | "
+                        f"RSI={rsi:.2f}"
                     ),
                 )
             )
@@ -73,7 +88,11 @@ class TrendScanner:
         #
         # SELL
         #
-        elif ema20 < ema50:
+        elif (
+            ema20 < ema50
+            and price < vwap
+            and rsi < 45
+        ):
 
             signals.append(
 
@@ -83,10 +102,11 @@ class TrendScanner:
                     strategy=Strategy.TREND,
                     price=price,
                     confidence=80,
-                    timestamp=candles[-1].timestamp,
+                    timestamp=latest.timestamp,
                     message=(
-                        f"EMA20 ({ema20:.2f}) "
-                        f"< EMA50 ({ema50:.2f})"
+                        f"EMA20 < EMA50 | "
+                        f"Price < VWAP | "
+                        f"RSI={rsi:.2f}"
                     ),
                 )
             )

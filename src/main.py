@@ -86,6 +86,7 @@ def main() -> None:
 
             dashboard.display(
                 ranked,
+                scanner.get_latest_indicators(),
                 connected=websocket.is_connected(),
             )
 

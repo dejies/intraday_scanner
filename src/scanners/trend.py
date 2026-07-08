@@ -1,87 +1,92 @@
 """
 Trend Scanner
 
-Detects bullish and bearish trend setups.
+Generates BUY/SELL signals using the shared
+Indicator Engine.
 """
 
 from __future__ import annotations
 
-from src.core.constants import SignalType, Strategy
-from src.indicators import ema, rsi, vwap
+from src.models.candle import Candle
+from src.models.indicator import IndicatorData
 from src.models.signal import Signal
+
+from src.core.constants import SignalType
+from src.core.constants import Strategy
 
 
 class TrendScanner:
+    """
+    Trend-based scanner.
+
+    Uses EMA20 and EMA50 from the shared
+    Indicator Engine.
+    """
 
     def scan(
-        self,
-        symbol: str,
-        candles: list,
+            self,
+            symbol: str,
+            candles: list[Candle],
+            indicators: IndicatorData,
     ) -> list[Signal]:
+        """
+        Scan one symbol for trend signals.
+        """
 
-        signals = []
+        signals: list[Signal] = []
 
-        if len(candles) < 50:
-            return signals
-
-        ema20 = ema(candles, 20)
-        ema50 = ema(candles, 50)
-        rsi14 = rsi(candles)
-        current_vwap = vwap(candles)
-
-        latest = candles[-1]
-
-        if None in (ema20, ema50, rsi14, current_vwap):
-            return signals
-
-        # ---------------------------------------------------------
-        # BUY
-        # ---------------------------------------------------------
-
+        #
+        # Need EMA values.
+        #
         if (
-            ema20 > ema50
-            and latest.close > current_vwap
-            and rsi14 > 55
+                indicators.ema20 is None
+                or indicators.ema50 is None
         ):
+            return signals
+
+        ema20 = indicators.ema20
+        ema50 = indicators.ema50
+
+        price = indicators.ltp
+
+        #
+        # BUY
+        #
+        if ema20 > ema50:
 
             signals.append(
+
                 Signal(
                     symbol=symbol,
-                    strategy=Strategy.TREND,
                     signal=SignalType.BUY,
-                    price=latest.close,
+                    strategy=Strategy.TREND,
+                    price=price,
                     confidence=80,
-                    timestamp=latest.timestamp,
+                    timestamp=candles[-1].timestamp,
                     message=(
-                        "EMA20 > EMA50, "
-                        "Price above VWAP, "
-                        "RSI > 55"
+                        f"EMA20 ({ema20:.2f}) "
+                        f"> EMA50 ({ema50:.2f})"
                     ),
                 )
             )
 
-        # ---------------------------------------------------------
+        #
         # SELL
-        # ---------------------------------------------------------
-
-        elif (
-            ema20 < ema50
-            and latest.close < current_vwap
-            and rsi14 < 45
-        ):
+        #
+        elif ema20 < ema50:
 
             signals.append(
+
                 Signal(
                     symbol=symbol,
-                    strategy=Strategy.TREND,
                     signal=SignalType.SELL,
-                    price=latest.close,
+                    strategy=Strategy.TREND,
+                    price=price,
                     confidence=80,
-                    timestamp=latest.timestamp,
+                    timestamp=candles[-1].timestamp,
                     message=(
-                        "EMA20 < EMA50, "
-                        "Price below VWAP, "
-                        "RSI < 45"
+                        f"EMA20 ({ema20:.2f}) "
+                        f"< EMA50 ({ema50:.2f})"
                     ),
                 )
             )

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from src.models.indicator import IndicatorData
 from src.models.signal import Signal
 
 
@@ -19,9 +20,10 @@ class Dashboard:
     WIDTH = 120
 
     def display(
-        self,
-        signals: list[Signal],
-        connected: bool = True,
+            self,
+            signals: list[Signal],
+            indicators: dict[str, IndicatorData],
+            connected: bool,
     ) -> None:
         """
         Display trading dashboard.
@@ -46,7 +48,7 @@ class Dashboard:
             f"{'EMA50':>10}"
             f"{'RSI':>8}"
             f"{'VWAP':>10}"
-            f"{'Volume':>12}"
+            f"{'RVOL':>12}"
             f"{'Signal':>10}"
             f"{'Conf':>10}"
         )
@@ -67,14 +69,41 @@ class Dashboard:
 
         for signal in signals:
 
+            indicator = indicators.get(signal.symbol)
+            #
+            # Default values.
+            #
+            ema20 = "--"
+            ema50 = "--"
+            rsi = "--"
+            vwap = "--"
+            rvol = "--"
+
+            if indicator is not None:
+
+                if indicator.ema20 is not None:
+                    ema20 = f"{indicator.ema20:.2f}"
+
+                if indicator.ema50 is not None:
+                    ema50 = f"{indicator.ema50:.2f}"
+
+                if indicator.rsi14 is not None:
+                    rsi = f"{indicator.rsi14:.2f}"
+
+                if indicator.vwap is not None:
+                    vwap = f"{indicator.vwap:.2f}"
+
+                if indicator.relative_volume is not None:
+                    rvol = f"{indicator.relative_volume:.2f}x"
+
             print(
                 f"{signal.symbol:<12}"
                 f"{signal.price:>10.2f}"
-                f"{'--':>10}"
-                f"{'--':>10}"
-                f"{'--':>8}"
-                f"{'--':>10}"
-                f"{'--':>12}"
+                f"{ema20:>10}"
+                f"{ema50:>10}"
+                f"{rsi:>8}"
+                f"{vwap:>10}"
+                f"{rvol:>12}"
                 f"{signal.signal.value:>10}"
                 f"{str(signal.confidence) + '%':>10}"
             )

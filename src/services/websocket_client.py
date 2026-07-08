@@ -364,15 +364,15 @@ class WebSocketClient(BaseService):
                 candle,
             )
 
-        self.logger.info(
-            "%s  O:%.2f H:%.2f L:%.2f C:%.2f V:%d",
-            symbol,
-            candle.open,
-            candle.high,
-            candle.low,
-            candle.close,
-            candle.volume,
-        )
+        # self.logger.info(
+        #     "%s  O:%.2f H:%.2f L:%.2f C:%.2f V:%d",
+        #     symbol,
+        #     candle.open,
+        #     candle.high,
+        #     candle.low,
+        #     candle.close,
+        #     candle.volume,
+        # )
 
 
     def _get_instruments(self):

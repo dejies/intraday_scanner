@@ -12,51 +12,71 @@ from src.models.signal import Signal
 
 
 class Dashboard:
+    """
+    Console dashboard for the intraday scanner.
+    """
+
+    WIDTH = 120
 
     def display(
         self,
         signals: list[Signal],
+        connected: bool = True,
     ) -> None:
         """
-        Display ranked signals.
+        Display trading dashboard.
         """
 
         print()
-        print("=" * 100)
-        print("               INTRADAY STOCK SCANNER")
-        print("=" * 100)
-        print(
-            f"Time : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        print(f"Signals Found : {len(signals)}")
-        print("=" * 100)
 
-        if not signals:
-            print("No trading signals found.")
-            print("=" * 100)
-            return
+        print("=" * self.WIDTH)
+
+        print(
+            f" Time : {datetime.now().strftime('%H:%M:%S')}"
+            f"{' ' * 40}"
+            f"Connected : {'YES' if connected else 'NO'}"
+        )
+
+        print("=" * self.WIDTH)
 
         header = (
             f"{'Symbol':<12}"
-            f"{'Signal':<8}"
-            f"{'Strategy':<12}"
-            f"{'Price':>12}"
-            f"{'Confidence':>12}"
-            f"   Message"
+            f"{'LTP':>10}"
+            f"{'EMA20':>10}"
+            f"{'EMA50':>10}"
+            f"{'RSI':>8}"
+            f"{'VWAP':>10}"
+            f"{'Volume':>12}"
+            f"{'Signal':>10}"
+            f"{'Conf':>10}"
         )
 
         print(header)
-        print("-" * 100)
+
+        print("-" * self.WIDTH)
+
+        if not signals:
+
+            print()
+            print(" No trading signals available.")
+            print()
+
+            print("=" * self.WIDTH)
+
+            return
 
         for signal in signals:
 
             print(
                 f"{signal.symbol:<12}"
-                f"{signal.signal.value:<8}"
-                f"{signal.strategy.value:<12}"
-                f"{signal.price:>12.2f}"
-                f"{signal.confidence:>12}%"
-                f"   {signal.message}"
+                f"{signal.price:>10.2f}"
+                f"{'--':>10}"
+                f"{'--':>10}"
+                f"{'--':>8}"
+                f"{'--':>10}"
+                f"{'--':>12}"
+                f"{signal.signal.value:>10}"
+                f"{str(signal.confidence) + '%':>10}"
             )
 
-        print("=" * 100)
+        print("=" * self.WIDTH)

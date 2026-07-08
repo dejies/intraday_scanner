@@ -23,6 +23,7 @@ class WebSocketClient(BaseService):
     ) -> None:
         super().__init__()
 
+        self._connected = False
         #
         # Watchlist
         #
@@ -80,14 +81,23 @@ class WebSocketClient(BaseService):
     # ------------------------------------------------------------------
 
     def on_connect(self, feed):
+        self._connected = True
         self.logger.info(
             "Connected to Dhan Market Feed."
         )
 
     def on_close(self, feed):
+        self._connected = False
         self.logger.warning(
             "Market Feed connection closed."
         )
+
+    def is_connected(self) -> bool:
+        """
+        Return current WebSocket connection status.
+        """
+
+        return self._connected
 
     def on_error(self, feed, error):
         self.logger.exception(
@@ -135,17 +145,6 @@ class WebSocketClient(BaseService):
             #
             price = float(
                 message["LTP"]
-            )
-            self.logger.info(
-                "%s %.2f",
-                symbol,
-                price,
-            )
-
-            self.logger.info(
-                "LTT=%s Symbol=%s",
-                message["LTT"],
-                symbol,
             )
 
             ltq = int(message["LTQ"])
@@ -215,15 +214,12 @@ class WebSocketClient(BaseService):
         Process one live market tick.
         """
 
-        self.logger.info(
-            "_process_tick: symbol=%s, exists=%s",
-            symbol,
-            symbol in self._working_candles,
-        )
-
+        #
+        # Safety fallback.
+        #
         if symbol not in self._working_candles:
-            self.logger.info(
-                "First tick for %s",
+            self.logger.warning(
+                "No working candle for %s. Creating one.",
                 symbol,
             )
 
@@ -299,11 +295,6 @@ class WebSocketClient(BaseService):
 
         self._working_candles[symbol] = candle
 
-        self.logger.info(
-            "Started new candle for %s",
-            symbol,
-        )
-
         self._current_minute[symbol] = minute
 
     def _update_candle(
@@ -339,20 +330,39 @@ class WebSocketClient(BaseService):
         """
         Store completed candle.
         """
-        self.logger.info(
-            "Finalizing candle for %s",
-            symbol,
-        )
 
         candle = self._working_candles.get(symbol)
 
         if candle is None:
             return
 
-        self.market_data.add_candle(
-            symbol,
-            candle,
+        latest = self.market_data.get_latest_candle(
+            symbol
         )
+
+        if (
+                latest is not None
+                and latest.timestamp.replace(
+            second=0,
+            microsecond=0,
+        )
+                == candle.timestamp.replace(
+            second=0,
+            microsecond=0,
+        )
+        ):
+
+            self.market_data.replace_latest_candle(
+                symbol,
+                candle,
+            )
+
+        else:
+
+            self.market_data.add_candle(
+                symbol,
+                candle,
+            )
 
         self.logger.info(
             "%s  O:%.2f H:%.2f L:%.2f C:%.2f V:%d",
@@ -363,17 +373,6 @@ class WebSocketClient(BaseService):
             candle.close,
             candle.volume,
         )
-        self.logger.info(
-            "%s -> Candle Count: %d",
-            symbol,
-            self.market_data.get_candle_count(symbol),
-        )
-        #
-        # Remove completed candle from working cache.
-        #
-        self._working_candles.pop(symbol, None)
-
-        self._current_minute.pop(symbol, None)
 
 
     def _get_instruments(self):
@@ -413,6 +412,11 @@ class WebSocketClient(BaseService):
             len(instruments),
         )
 
+        #
+        # Continue from historical candles.
+        #
+        self._initialize_working_candles()
+
         self.feed = MarketFeed(
             dhan_context=self.context,
             instruments=instruments,
@@ -429,4 +433,38 @@ class WebSocketClient(BaseService):
 
         self.logger.info(
             "Market Feed thread started."
+        )
+
+    def _initialize_working_candles(self) -> None:
+        """
+        Initialize working candles from historical data.
+        """
+
+        for symbol in self.market_data.get_symbols():
+
+            candle = self.market_data.get_latest_candle(
+                symbol
+            )
+
+            if candle is None:
+                continue
+
+            self._working_candles[symbol] = Candle(
+                timestamp=candle.timestamp,
+                open=candle.open,
+                high=candle.high,
+                low=candle.low,
+                close=candle.close,
+                volume=candle.volume,
+            )
+
+            self._current_minute[symbol] = (
+                candle.timestamp.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            )
+
+        self.logger.info(
+            "Initialized %d working candles.",
+            len(self._working_candles),
         )

@@ -164,3 +164,30 @@ class MarketData(BaseService):
 
         with self._lock:
             self._candles[symbol].extend(candles)
+
+    def replace_latest_candle(
+            self,
+            symbol: str,
+            candle: Candle,
+    ) -> None:
+        """
+        Replace the latest candle.
+
+        Used when historical data already contains the
+        current minute and the WebSocket continues updating
+        that candle.
+        """
+
+        symbol = symbol.upper()
+
+        with self._lock:
+
+            candles = self._candles[symbol]
+
+            if candles:
+
+                candles[-1] = candle
+
+            else:
+
+                candles.append(candle)

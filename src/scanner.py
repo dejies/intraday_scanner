@@ -53,7 +53,7 @@ class Scanner:
             #
             # Need sufficient candle history.
             #
-            if len(candles) < 50:
+            if len(candles) < 2:
                 continue
 
             signals.extend(

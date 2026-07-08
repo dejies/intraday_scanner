@@ -1,45 +1,78 @@
 """
-Intraday Scanner - Main Entry Point
+Application Entry Point
 """
 
 from __future__ import annotations
 
+import threading
 import time
 
 from src.dashboard import Dashboard
-from src.ranking import SignalRanking
 from src.scanner import Scanner
-
+from src.ranking import SignalRanking
 from src.services.market_data import MarketData
+from src.services.historical_data import HistoricalDataService
 from src.services.websocket_client import WebSocketClient
 
 
-def main():
+def main() -> None:
+    """
+    Application entry point.
+    """
 
     #
-    # Shared market data.
+    # Shared MarketData
     #
     market_data = MarketData()
 
     #
-    # Core components.
+    # Load historical candles.
     #
-    scanner = Scanner(market_data)
+    historical = HistoricalDataService(
+        market_data=market_data,
+    )
+
+    historical.load()
+
+    print()
+
+    print("Historical data loaded")
+
+    for symbol in market_data.get_symbols():
+        print(
+            symbol,
+            market_data.get_candle_count(symbol),
+        )
+
+    #
+    # Start WebSocket.
+    #
+    websocket = WebSocketClient(
+        market_data=market_data,
+    )
+
+    websocket_thread = threading.Thread(
+        target=websocket.connect,
+        daemon=True,
+        name="MarketFeed",
+    )
+
+    websocket_thread.start()
+
+    #
+    # Scanner components
+    #
+    scanner = Scanner(
+        market_data=market_data,
+    )
 
     ranking = SignalRanking()
 
     dashboard = Dashboard()
 
-    websocket = WebSocketClient(
-        market_data=market_data,
-    )
-
-    #
-    # Start websocket.
-    #
-    websocket.connect()
-
-    print("\nScanner started...\n")
+    print()
+    print("Scanner started...")
+    print()
 
     try:
 
@@ -47,23 +80,26 @@ def main():
 
             signals = scanner.scan()
 
-            signals = ranking.rank(signals)
+            ranked = ranking.rank(
+                signals,
+            )
 
-            dashboard.display(signals)
-            for symbol in market_data.get_symbols():
-                print(
-                    symbol,
-                    market_data.get_candle_count(symbol),
-                )
+            dashboard.display(
+                ranked,
+                connected=websocket.is_connected(),
+            )
+
             time.sleep(1)
-
 
     except KeyboardInterrupt:
 
-        print("\nStopping scanner...")
+        print()
+        print("Stopping scanner...")
 
-        if websocket.feed is not None:
-            websocket.feed.close_connection()
+        try:
+            websocket.on_close(None)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

@@ -11,6 +11,26 @@ from datetime import datetime
 from src.models.indicator import IndicatorData
 from src.models.signal import Signal
 
+class Color:
+    """
+    ANSI terminal colors.
+    """
+
+    RESET = "\033[0m"
+
+    RED = "\033[91m"
+
+    GREEN = "\033[92m"
+
+    YELLOW = "\033[93m"
+
+    BLUE = "\033[94m"
+
+    CYAN = "\033[96m"
+
+    WHITE = "\033[97m"
+
+    BOLD = "\033[1m"
 
 class Dashboard:
     """
@@ -96,6 +116,19 @@ class Dashboard:
                 if indicator.relative_volume is not None:
                     rvol = f"{indicator.relative_volume:.2f}x"
 
+            if signal.signal.value == "BUY":
+                signal_text = (
+                    f"{Color.GREEN}"
+                    f"{signal.signal.value}"
+                    f"{Color.RESET}"
+                )
+            else:
+                signal_text = (
+                    f"{Color.RED}"
+                    f"{signal.signal.value}"
+                    f"{Color.RESET}"
+                )
+
             print(
                 f"{signal.symbol:<12}"
                 f"{signal.price:>10.2f}"
@@ -104,7 +137,7 @@ class Dashboard:
                 f"{rsi:>8}"
                 f"{vwap:>10}"
                 f"{rvol:>12}"
-                f"{signal.signal.value:>10}"
+                f"{signal_text:>19}"
                 f"{str(signal.confidence) + '%':>10}"
             )
 

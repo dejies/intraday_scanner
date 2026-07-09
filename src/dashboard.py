@@ -122,15 +122,25 @@ class Dashboard:
                     f"{signal.signal.value}"
                     f"{Color.RESET}"
                 )
+                symbol_text = (
+                    f"{Color.GREEN}"
+                    f"{signal.symbol:<12}"
+                    f"{Color.RESET}"
+                )
             else:
                 signal_text = (
                     f"{Color.RED}"
                     f"{signal.signal.value}"
                     f"{Color.RESET}"
                 )
+                symbol_text = (
+                    f"{Color.RED}"
+                    f"{signal.symbol:<12}"
+                    f"{Color.RESET}"
+                )
 
             print(
-                f"{signal.symbol:<12}"
+                f"{symbol_text}"
                 f"{signal.price:>10.2f}"
                 f"{ema20:>10}"
                 f"{ema50:>10}"
@@ -140,5 +150,6 @@ class Dashboard:
                 f"{signal_text:>19}"
                 f"{str(signal.confidence) + '%':>10}"
             )
+            #print("-" * self.WIDTH)
 
         print("=" * self.WIDTH)

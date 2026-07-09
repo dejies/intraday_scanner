@@ -1,11 +1,17 @@
-security_id,symbol,exchange,name,enabled
-2885,RELIANCE,NSE,Reliance Industries,true
-11536,TCS,NSE,Tata Consultancy Services,true
-1594,INFY,NSE,Infosys Limited,true
-1333,HDFCBANK,NSE,HDFC Bank,true
-4963,ICICIBANK,NSE,ICICI Bank,true
-3045,SBIN,NSE,State Bank of India,true
-11483,LT,NSE,Larsen & Toubro,true
-1660,ITC,NSE,ITC Limited,true
-5900,AXISBANK,NSE,Axis Bank,true
-10604,BHARTIARTL,NSE,Bharti Airtel,true
+symbol,enabled
+RELIANCE,true
+TCS,false
+INFY,false
+HDFCBANK,false
+ICICIBANK,true
+SBIN,true
+LT,false
+ITC,true
+AXISBANK,true
+BHARTIARTL,true
+ITDC,true
+JINDRILL,true
+CUPID,true
+SIGNATURE,trueCGCL,true
+WELCORP,true
+IFCI,true

@@ -120,17 +120,18 @@ class HttpClient(BaseService):
 
     def _build_url(
             self,
-            endpoint: str,
+            path: str = "",
     ) -> str:
         """
-        Build the full URL.
+        Build request URL safely.
         """
 
-        return (
-            self.base_url
-            + "/"
-            + endpoint.lstrip("/")
-        )
+        base = self.base_url.rstrip("/")
+
+        if not path:
+            return base
+
+        return f"{base}/{path.lstrip('/')}"
 
     # ------------------------------------------------------------------
     # GET

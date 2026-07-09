@@ -7,39 +7,47 @@ loads them into the shared MarketData store.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
+import time
 
-from dhanhq import DhanContext, dhanhq
+from dhanhq import DhanContext
+from dhanhq import dhanhq
 
-from src.core.constants import Exchange
 from src.models.candle import Candle
-from src.models.stock import Stock
+from src.models.instrument import Instrument
+
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
-import time
+
 
 class HistoricalDataService(BaseService):
     """
-    Loads historical candles from Dhan.
+    Downloads historical candles for all instruments in the
+    watchlist and stores them in the shared MarketData object.
     """
 
     def __init__(
             self,
             market_data: MarketData,
+            watchlist: WatchlistService,
     ) -> None:
+
         super().__init__()
 
+        #
+        # Shared MarketData.
+        #
         self.market_data = market_data
 
         #
-        # Watchlist
+        # Shared Watchlist.
         #
-        self.watchlist = WatchlistService()
-        self.watchlist.load()
+        self.watchlist = watchlist
 
         #
-        # Shared Dhan Context
+        # Shared Dhan Context.
         #
         self.context = DhanContext(
             self.settings.dhan_client_id,
@@ -47,7 +55,7 @@ class HistoricalDataService(BaseService):
         )
 
         #
-        # Dhan REST Client
+        # REST client.
         #
         self.dhan = dhanhq(
             self.context,
@@ -61,29 +69,40 @@ class HistoricalDataService(BaseService):
 
     def load(self) -> None:
         """
-        Load historical data for all enabled stocks.
+        Load historical candles for every enabled instrument.
         """
 
         self.logger.info(
             "Loading historical candles..."
         )
 
-        for stock in self.watchlist.get_all():
+        instruments = self.watchlist.get_all()
+
+        self.logger.info(
+            "Loading history for %d instruments.",
+            len(instruments),
+        )
+
+        for instrument in instruments:
 
             try:
 
-                self._load_symbol(stock)
+                self._load_symbol(
+                    instrument,
+                )
 
                 #
                 # Respect Dhan rate limits.
                 #
-                time.sleep(0.5)
+                time.sleep(
+                    self.settings.retry_delay
+                )
 
             except Exception:
 
                 self.logger.exception(
                     "Unable to load history for %s",
-                    stock.symbol,
+                    instrument.symbol,
                 )
 
         self.logger.info(
@@ -94,91 +113,111 @@ class HistoricalDataService(BaseService):
 
     def _load_symbol(
             self,
-            stock: Stock,
+            instrument: Instrument,
     ) -> None:
         """
-        Load historical candles for one stock.
+        Download historical candles for a single instrument.
 
-        Retries automatically if Dhan rate-limits
-        the request (DH-904).
+        Automatically retries on temporary API failures.
         """
 
-        max_retries = 3
+        max_retries = self.settings.retry_count
 
-        for attempt in range(1, max_retries + 1):
+        for attempt in range(
+                1,
+                max_retries + 1,
+        ):
 
-            response = self._download_history(stock)
+            response = self._download_history(
+                instrument,
+            )
 
             #
-            # Success?
+            # Success.
             #
-            if response.get("status") == "success":
+            if response.get(
+                    "status"
+            ) == "success":
 
                 candles = self._convert_to_candles(
                     response,
                 )
 
                 if candles:
+
                     self.market_data.add_candles(
-                        stock.symbol,
+                        instrument.symbol,
                         candles,
                     )
 
                     self.logger.info(
-                        "%s : Loaded %d historical candles.",
-                        stock.symbol,
+                        "%s : Loaded %d candles.",
+                        instrument.symbol,
                         len(candles),
                     )
 
                     return
 
-                #
-                # Successful response but no data.
-                #
                 self.logger.warning(
-                    "No historical candles for %s",
-                    stock.symbol,
+                    "%s : No historical candles returned.",
+                    instrument.symbol,
                 )
 
                 return
 
             #
-            # Failed request
+            # Error response.
             #
-            remarks = response.get("remarks", {})
+            remarks = response.get(
+                "remarks",
+                {},
+            )
 
             error_code = ""
 
-            if isinstance(remarks, dict):
+            if isinstance(
+                    remarks,
+                    dict,
+            ):
                 error_code = remarks.get(
                     "error_code",
                     "",
                 )
 
             #
-            # Retry only for rate limit.
+            # Retry only on rate limiting.
             #
             if (
                     error_code == "DH-904"
                     and attempt < max_retries
             ):
+
                 self.logger.warning(
-                    "%s : Rate limited. Retry %d/%d...",
-                    stock.symbol,
+                    "%s : Rate limited "
+                    "(%d/%d). Retrying...",
+                    instrument.symbol,
                     attempt,
                     max_retries,
                 )
 
-                time.sleep(1)
+                time.sleep(
+                    self.settings.retry_delay
+                )
 
                 continue
 
             #
-            # Final failure.
+            # Permanent failure.
             #
             self.logger.error(
-                "%s : Historical download failed: %s",
-                stock.symbol,
+                "%s : Failed to download "
+                "historical data.",
+                instrument.symbol,
+            )
+
+            self.logger.error(
+                "%s : %s",
+                instrument.symbol,
                 response,
             )
 
@@ -186,85 +225,231 @@ class HistoricalDataService(BaseService):
 
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+
     def _download_history(
             self,
-            stock: Stock,
+            instrument: Instrument,
     ):
         """
         Download historical candles.
 
-        Strategy:
-            1. Load today's candles.
-            2. If insufficient, load yesterday.
+        Strategy
+        --------
+        Walk backwards for N days until enough candles
+        are collected.
         """
 
         today = datetime.now().date()
 
-        response = self.dhan.intraday_minute_data(
-            security_id=str(stock.security_id),
-            exchange_segment=self.dhan.NSE,
-            instrument_type="EQUITY",
-            from_date=today.strftime("%Y-%m-%d"),
-            to_date=today.strftime("%Y-%m-%d"),
-            interval=1,
+        exchange_segment = self._get_exchange_segment(
+            instrument,
         )
 
-        data = response.get("data")
-
-        if not data:
-            return response
-
-        #
-        # Enough candles?
-        #
-        if len(data["close"]) >= self.settings.max_candles:
-            return response
-
-        #
-        # Need previous day.
-        #
-        previous = today - timedelta(days=1)
-
-        previous_response = self.dhan.intraday_minute_data(
-            security_id=str(stock.security_id),
-            exchange_segment=self.dhan.NSE,
-            instrument_type="EQUITY",
-            from_date=previous.strftime("%Y-%m-%d"),
-            to_date=previous.strftime("%Y-%m-%d"),
-            interval=1,
+        instrument_type = self._get_instrument_type(
+            instrument,
         )
 
-        previous_data = previous_response.get("data")
-
-        if not previous_data:
-            return response
+        merged = None
 
         #
-        # Merge all arrays.
+        # Walk backwards through the configured number
+        # of days.
         #
-        merged = {}
+        for i in range(
+                self.settings.historical_lookback_days
+        ):
 
-        for key in data.keys():
-            merged[key] = previous_data[key] + data[key]
+            day = today - timedelta(days=i)
 
-        response["data"] = merged
+            response = self.dhan.intraday_minute_data(
+                security_id=str(
+                    instrument.security_id
+                ),
+                exchange_segment=exchange_segment,
+                instrument_type=instrument_type,
+                from_date=day.strftime("%Y-%m-%d"),
+                to_date=day.strftime("%Y-%m-%d"),
+                interval=self.settings.historical_interval,
+            )
 
-        return response
+            #
+            # API failure.
+            #
+            if response.get("status") != "success":
+                return response
+
+            data = response.get("data")
+
+            #
+            # Weekend / holiday.
+            #
+            if not data:
+                continue
+
+            #
+            # First successful day.
+            #
+            if merged is None:
+
+                merged = data
+
+            else:
+
+                #
+                # Older candles should appear before
+                # newer candles.
+                #
+                for key in merged.keys():
+                    merged[key] = (
+                            data[key]
+                            + merged[key]
+                    )
+
+            #
+            # Enough candles collected?
+            #
+            if (
+                    len(merged["close"])
+                    >= self.settings.max_candles
+            ):
+                break
+
+        #
+        # Nothing downloaded.
+        #
+        if merged is None:
+            return {
+                "status": "success",
+                "data": None,
+            }
+
+        #
+        # Trim to max candles.
+        #
+        start = max(
+            0,
+            len(merged["close"])
+            - self.settings.max_candles,
+        )
+
+        for key in merged.keys():
+            merged[key] = merged[key][start:]
+
+        return {
+            "status": "success",
+            "data": merged,
+        }
+
+    # ------------------------------------------------------------------
+
+    def _get_exchange_segment(
+            self,
+            instrument: Instrument,
+    ):
+        """
+        Convert Instrument exchange into the Dhan SDK
+        exchange segment.
+        """
+
+        exchange = instrument.exchange.upper()
+
+        if exchange == "NSE":
+            return self.dhan.NSE
+
+        if exchange == "BSE":
+            return self.dhan.BSE
+
+        #
+        # Future exchanges can be added here.
+        #
+        raise ValueError(
+            f"Unsupported exchange: {exchange}"
+        )
+
+    # ------------------------------------------------------------------
+
+    def _get_instrument_type(
+            self,
+            instrument: Instrument,
+    ) -> str:
+        """
+        Convert Instrument type into Dhan API value.
+        """
+
+        instrument_type = (
+            instrument.instrument_type.upper()
+        )
+
+        #
+        # Equity
+        #
+        if (
+                "EQUITY" in instrument_type
+                or instrument.segment == "E"
+        ):
+            return "EQUITY"
+
+        #
+        # Futures
+        #
+        if (
+                "FUTURE" in instrument_type
+                or instrument.segment == "D"
+        ):
+            return "FUTIDX"
+
+        #
+        # Options
+        #
+        if (
+                "OPTION" in instrument_type
+        ):
+            return "OPTIDX"
+
+        #
+        # Default.
+        #
+        return "EQUITY"
+
+    # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
 
     def _convert_to_candles(
             self,
-            response,
+            response: dict,
     ) -> list[Candle]:
         """
-        Convert Dhan response into Candle objects.
+        Convert Dhan historical response into Candle objects.
         """
 
         data = response.get("data")
 
         if not data:
             return []
+
+        required_fields = (
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "timestamp",
+        )
+
+        #
+        # Validate response.
+        #
+        for field in required_fields:
+
+            if field not in data:
+                self.logger.warning(
+                    "Historical response missing field '%s'.",
+                    field,
+                )
+
+                return []
 
         opens = data["open"]
         highs = data["high"]
@@ -274,29 +459,66 @@ class HistoricalDataService(BaseService):
         timestamps = data["timestamp"]
 
         #
+        # Validate array lengths.
+        #
+        length = len(opens)
+
+        if not all(
+                len(values) == length
+                for values in (
+                        highs,
+                        lows,
+                        closes,
+                        volumes,
+                        timestamps,
+                )
+        ):
+            self.logger.error(
+                "Historical response contains inconsistent array lengths."
+            )
+
+            return []
+
+        #
         # Keep only latest candles.
         #
-        max_candles = self.settings.max_candles
-
         start = max(
             0,
-            len(opens) - max_candles,
+            length - self.settings.max_candles,
         )
 
-        candles = []
+        candles: list[Candle] = []
 
-        for i in range(start, len(opens)):
-            candles.append(
-                Candle(
-                    timestamp=datetime.fromtimestamp(
-                        timestamps[i]
-                    ),
-                    open=float(opens[i]),
-                    high=float(highs[i]),
-                    low=float(lows[i]),
-                    close=float(closes[i]),
-                    volume=int(volumes[i]),
+        for index in range(start, length):
+
+            try:
+
+                candles.append(
+
+                    Candle(
+
+                        timestamp=datetime.fromtimestamp(
+                            timestamps[index]
+                        ),
+
+                        open=float(opens[index]),
+
+                        high=float(highs[index]),
+
+                        low=float(lows[index]),
+
+                        close=float(closes[index]),
+
+                        volume=int(volumes[index]),
+                    )
                 )
-            )
+
+            except Exception as exc:
+
+                self.logger.warning(
+                    "Skipping malformed candle (%d): %s",
+                    index,
+                    exc,
+                )
 
         return candles

@@ -13,7 +13,10 @@ from src.ranking import SignalRanking
 from src.services.market_data import MarketData
 from src.services.historical_data import HistoricalDataService
 from src.services.websocket_client import WebSocketClient
-
+from src.services.watchlist import WatchlistService
+from src.services.instrument_master_service import (
+    InstrumentMasterService,
+)
 
 def main() -> None:
     """
@@ -24,12 +27,34 @@ def main() -> None:
     # Shared MarketData
     #
     market_data = MarketData()
+    instrument_master = InstrumentMasterService()
+    instrument_master.load()
+    print()
 
+    print("=" * 70)
+    print("Instrument Master")
+    print("=" * 70)
+
+    print(
+        "Loaded:",
+        len(instrument_master.get_all()),
+        "instruments",
+    )
+
+    print("=" * 70)
+    print()
+
+    watchlist = WatchlistService(
+        instrument_master=instrument_master,
+    )
+
+    watchlist.load()
     #
     # Load historical candles.
     #
     historical = HistoricalDataService(
         market_data=market_data,
+        watchlist=watchlist,
     )
 
     historical.load()
@@ -43,6 +68,7 @@ def main() -> None:
     #
     websocket = WebSocketClient(
         market_data=market_data,
+        watchlist=watchlist,
     )
 
     websocket_thread = threading.Thread(

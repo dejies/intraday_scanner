@@ -10,7 +10,7 @@ from src.models.candle import Candle
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
-
+from src.models.instrument import Instrument
 
 class WebSocketClient(BaseService):
     """
@@ -19,7 +19,8 @@ class WebSocketClient(BaseService):
 
     def __init__(
             self,
-            market_data: MarketData | None = None,
+            market_data: MarketData,
+            watchlist: WatchlistService,
     ) -> None:
         super().__init__()
 
@@ -27,8 +28,7 @@ class WebSocketClient(BaseService):
         #
         # Watchlist
         #
-        self.watchlist = WatchlistService()
-        self.watchlist.load()
+        self.watchlist = watchlist
 
         #
         # Shared market data store
@@ -382,12 +382,12 @@ class WebSocketClient(BaseService):
 
         instruments = []
 
-        for stock in self.watchlist.get_all():
+        for instrument in self.watchlist.get_all():
 
             instruments.append(
                 (
                     MarketFeed.NSE,
-                    str(stock.security_id),
+                    str(instrument.security_id),
                     MarketFeed.Full,
                 )
             )

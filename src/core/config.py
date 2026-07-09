@@ -72,6 +72,14 @@ class Settings:
     max_candles: int
 
     # -------------------------------------------------------------------------
+    # Historical Data
+    # -------------------------------------------------------------------------
+
+    historical_lookback_days: int
+
+    historical_interval: int
+
+    # -------------------------------------------------------------------------
     # Files
     # -------------------------------------------------------------------------
 
@@ -149,7 +157,7 @@ def load_settings() -> Settings:
     instrument_master_file = Path(
         os.getenv(
             "INSTRUMENT_MASTER_FILE",
-            DATA_DIR / "dhan_instruments.csv",
+            DATA_DIR / "dhan_instruments1.csv",
         )
     )
 
@@ -403,6 +411,29 @@ def load_settings() -> Settings:
         ema_gap_normal=float(os.getenv("EMA_GAP_NORMAL", "0.5")),
         ema_gap_weak=float(os.getenv("EMA_GAP_WEAK", "0.3")),
         ema_gap_min=float(os.getenv("EMA_GAP_MIN", "0.1")),
+        # ---------------------------------------------------------------------
+        # Historical Data
+        # ---------------------------------------------------------------------
+
+        historical_lookback_days=max(
+            1,
+            int(
+                os.getenv(
+                    "HISTORICAL_LOOKBACK_DAYS",
+                    "5",
+                )
+            ),
+        ),
+
+        historical_interval=max(
+            1,
+            int(
+                os.getenv(
+                    "HISTORICAL_INTERVAL",
+                    "1",
+                )
+            ),
+        ),
     )
 
 

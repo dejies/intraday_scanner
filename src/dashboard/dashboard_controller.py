@@ -63,15 +63,28 @@ class DashboardController(QObject):
             current_datetime=datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
         )
 
+        buy_stocks = self._market_store.get_buy_signals()
+        sell_stocks = self._market_store.get_sell_signals()
+
+        #
+        # Cache technical indicators for the inspection window
+        #
+        self._window.set_stock_details(
+            self._build_stock_details(
+                buy_stocks,
+                sell_stocks,
+            )
+        )
+
         self._window.update_buy_table(
             self._build_rows(
-                self._market_store.get_buy_signals()
+                buy_stocks
             )
         )
 
         self._window.update_sell_table(
             self._build_rows(
-                self._market_store.get_sell_signals()
+                sell_stocks
             )
         )
 
@@ -103,3 +116,77 @@ class DashboardController(QObject):
             ])
 
         return rows
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_stock_details(
+            buy_stocks,
+            sell_stocks,
+    ) -> dict[str, dict]:
+        """
+        Build stock details for the inspection window.
+        """
+
+        details: dict[str, dict] = {}
+
+        for stock in list(buy_stocks) + list(sell_stocks):
+            tick = stock.tick
+            indicator = stock.indicator
+            signal = stock.active_signal
+
+            details[stock.instrument.symbol] = {
+
+                "symbol": stock.instrument.symbol,
+
+                "ltp": (
+                    round(tick.ltp, 2)
+                    if tick
+                    else "-"
+                ),
+
+                "ema20": (
+                    round(indicator.ema20, 2)
+                    if indicator and indicator.ema20 is not None
+                    else "-"
+                ),
+
+                "ema50": (
+                    round(indicator.ema50, 2)
+                    if indicator and indicator.ema50 is not None
+                    else "-"
+                ),
+
+                "rsi": (
+                    round(indicator.rsi14, 2)
+                    if indicator and indicator.rsi14 is not None
+                    else "-"
+                ),
+
+                "vwap": (
+                    round(indicator.vwap, 2)
+                    if indicator and indicator.vwap is not None
+                    else "-"
+                ),
+
+                "rvol": (
+                    round(indicator.relative_volume, 2)
+                    if indicator and indicator.relative_volume is not None
+                    else "-"
+                ),
+
+                "signal": (
+                    signal.strategy
+                    if signal
+                    else "-"
+                ),
+
+                "confidence": (
+                    round(signal.confidence, 1)
+                    if signal
+                    else "-"
+                ),
+            }
+
+        print(details)
+        return details

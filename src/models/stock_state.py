@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from src.models.indicator import IndicatorData
 from src.models.candle import Candle
 from src.models.instrument import Instrument
 from src.models.signal import Signal
@@ -36,7 +37,7 @@ class StockState:
     current_candle: Optional[Candle] = None
 
     # Latest calculated indicators
-    indicator: Optional[Indicator] = None
+    indicator: Optional[IndicatorData] = None
 
     # Current active BUY/SELL signal
     active_signal: Optional[Signal] = None

@@ -86,10 +86,26 @@ class Scanner:
                 symbol,
                 candles,
             )
+
             #
-            # Cache indicators for dashboard.
+            # Cache indicators.
             #
             self.latest_indicators[symbol] = indicators
+
+            #
+            # Lookup instrument once.
+            #
+            instrument = self.watchlist.get_instrument(symbol)
+
+            #
+            # Store indicators in MarketDataStore.
+            #
+            if instrument is not None:
+                self.market_store.update_indicator(
+                    instrument.security_id,
+                    indicators,
+                )
+
             #
             # Trend Scanner.
             #
@@ -98,8 +114,6 @@ class Scanner:
                 candles,
                 indicators,
             )
-
-            instrument = self.watchlist.get_instrument(symbol)
 
             if instrument is not None:
                 for signal in trend_signals:
@@ -110,19 +124,16 @@ class Scanner:
             #
             # Breakout Scanner.
             #
-            trend_signals = self.trend.scan(
+            breakout_signals = self.breakout.scan(
                 symbol,
                 candles,
-                indicators,
             )
 
-            instrument = self.watchlist.get_instrument(symbol)
-
             if instrument is not None:
-                for signal in trend_signals:
+                for signal in breakout_signals:
                     signal.security_id = instrument.security_id
 
-            signals.extend(trend_signals)
+            signals.extend(breakout_signals)
 
             #
             # Volume Scanner.

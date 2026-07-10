@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
+from src.dashboard.stock_inspection_dialog import StockInspectionDialog
 
 class DashboardWindow(QMainWindow):
     """
@@ -60,6 +60,13 @@ class DashboardWindow(QMainWindow):
         self._sell_sort_order = Qt.DescendingOrder
 
         self._build_ui()
+
+        #
+        # Stock inspection
+        #
+        self._stock_details: dict[str, dict] = {}
+
+        self._inspection_dialog = None
 
         #
         # Apply default sorting.
@@ -159,6 +166,10 @@ class DashboardWindow(QMainWindow):
             self.BUY_COLUMNS
         )
 
+        self.buy_table.cellDoubleClicked.connect(
+            self._buy_table_double_clicked
+        )
+
         layout.addWidget(
             self.buy_table
         )
@@ -172,6 +183,10 @@ class DashboardWindow(QMainWindow):
 
         self.sell_table = self._create_table(
             self.SELL_COLUMNS
+        )
+
+        self.sell_table.cellDoubleClicked.connect(
+            self._sell_table_double_clicked
         )
 
         layout.addWidget(
@@ -419,6 +434,99 @@ class DashboardWindow(QMainWindow):
             sort_order=self._sell_sort_order,
         )
 
+    # ------------------------------------------------------------------
+
+    def set_stock_details(
+            self,
+            details: dict[str, dict],
+    ) -> None:
+
+        """
+        Latest technical indicators keyed by symbol.
+        """
+
+        self._stock_details = details or {}
+
+    # ------------------------------------------------------------------
+
+    def _buy_table_double_clicked(
+            self,
+            row: int,
+            column: int,
+    ) -> None:
+
+        if column != self.SYMBOL_COLUMN:
+            return
+
+        self._open_stock_dialog(
+            self.buy_table,
+            row,
+        )
+
+    # ------------------------------------------------------------------
+
+    def _sell_table_double_clicked(
+            self,
+            row: int,
+            column: int,
+    ) -> None:
+
+        if column != self.SYMBOL_COLUMN:
+            return
+
+        self._open_stock_dialog(
+            self.sell_table,
+            row,
+        )
+
+    # ------------------------------------------------------------------
+
+    def _open_stock_dialog(
+            self,
+            table: QTableWidget,
+            row: int,
+    ) -> None:
+
+        item = table.item(
+            row,
+            self.SYMBOL_COLUMN,
+        )
+
+        if item is None:
+            return
+
+        symbol = item.text()
+
+        stock = self._stock_details.get(
+            symbol
+        )
+
+        if stock is None:
+            return
+
+        #
+        # Reuse existing dialog if it is already open.
+        #
+        if (
+                self._inspection_dialog is not None
+                and self._inspection_dialog.isVisible()
+        ):
+            self._inspection_dialog.update_stock(
+                stock
+            )
+
+            self._inspection_dialog.raise_()
+
+            self._inspection_dialog.activateWindow()
+
+            return
+
+        self._inspection_dialog = StockInspectionDialog(
+            stock,
+            self,
+        )
+
+        self._inspection_dialog.show()
     # ------------------------------------------------------------------
 
     @classmethod

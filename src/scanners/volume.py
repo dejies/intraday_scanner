@@ -42,13 +42,14 @@ class VolumeScanner:
 
             signals.append(
                 Signal(
-                    symbol=symbol,
+                    security_id=0,  # Temporary
                     strategy=Strategy.VOLUME,
-                    signal=SignalType.BUY,
-                    price=latest.close,
+                    signal_type=SignalType.BUY,
+                    signal_price=latest.close,
+                    current_ltp=latest.close,
                     confidence=75,
-                    timestamp=latest.timestamp,
                     message="Bullish volume spike",
+                    timestamp=latest.timestamp,
                 )
             )
 
@@ -61,13 +62,14 @@ class VolumeScanner:
 
             signals.append(
                 Signal(
-                    symbol=symbol,
+                    security_id=0,  # Temporary
                     strategy=Strategy.VOLUME,
-                    signal=SignalType.SELL,
-                    price=latest.close,
+                    signal_type=SignalType.SELL,
+                    signal_price=latest.close,
+                    current_ltp=latest.close,
                     confidence=75,
-                    timestamp=latest.timestamp,
                     message="Bearish volume spike",
+                    timestamp=latest.timestamp,
                 )
             )
 

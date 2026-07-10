@@ -73,6 +73,7 @@ class TrendScanner:
         else:
             return signals
 
+        assert signal_type is not None
         confidence = self._calculate_confidence(
             signal_type,
             indicators,
@@ -84,15 +85,16 @@ class TrendScanner:
         )
 
         signals.append(
-
+            
             Signal(
-                symbol=symbol,
-                signal=signal_type,
+                security_id=0,  # Temporary
                 strategy=Strategy.TREND,
-                price=indicators.ltp,
+                signal_type=signal_type,
+                signal_price=indicators.ltp,
+                current_ltp=indicators.ltp,
                 confidence=confidence,
-                timestamp=latest.timestamp,
                 message=message,
+                timestamp=latest.timestamp,
             )
         )
 

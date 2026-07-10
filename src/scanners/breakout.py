@@ -39,13 +39,14 @@ class BreakoutScanner:
 
             signals.append(
                 Signal(
-                    symbol=symbol,
+                    security_id=0,  # Temporary
                     strategy=Strategy.BREAKOUT,
-                    signal=SignalType.BUY,
-                    price=latest.close,
+                    signal_type=SignalType.BUY,
+                    signal_price=latest.close,
+                    current_ltp=latest.close,
                     confidence=85,
-                    timestamp=latest.timestamp,
                     message="Price breakout with volume confirmation",
+                    timestamp=latest.timestamp,
                 )
             )
 
@@ -57,13 +58,14 @@ class BreakoutScanner:
 
             signals.append(
                 Signal(
-                    symbol=symbol,
+                    security_id=0,  # Temporary
                     strategy=Strategy.BREAKOUT,
-                    signal=SignalType.SELL,
-                    price=latest.close,
+                    signal_type=SignalType.SELL,
+                    signal_price=latest.close,
+                    current_ltp=latest.close,
                     confidence=85,
-                    timestamp=latest.timestamp,
                     message="Price breakdown with volume confirmation",
+                    timestamp=latest.timestamp,
                 )
             )
 

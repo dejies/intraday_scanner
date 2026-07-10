@@ -12,7 +12,8 @@ from src.scanners.breakout import BreakoutScanner
 from src.scanners.trend import TrendScanner
 from src.scanners.volume import VolumeScanner
 from src.services.market_data import MarketData
-
+from src.core.market_data_store import MarketDataStore
+from src.services.watchlist import WatchlistService
 
 class Scanner:
     """
@@ -22,13 +23,16 @@ class Scanner:
     def __init__(
             self,
             market_data: MarketData,
+            market_store: MarketDataStore,
+            watchlist: WatchlistService,
     ) -> None:
 
         #
         # Shared MarketData instance.
         #
         self.market_data = market_data
-
+        self.market_store = market_store
+        self.watchlist = watchlist
         #
         # Scanners.
         #
@@ -94,27 +98,51 @@ class Scanner:
                 candles,
                 indicators,
             )
+
+            instrument = self.watchlist.get_instrument(symbol)
+
+            if instrument is not None:
+                for signal in trend_signals:
+                    signal.security_id = instrument.security_id
+
             signals.extend(trend_signals)
 
             #
             # Breakout Scanner.
             #
-            signals.extend(
-                self.breakout.scan(
-                    symbol,
-                    candles,
-                )
+            trend_signals = self.trend.scan(
+                symbol,
+                candles,
+                indicators,
             )
+
+            instrument = self.watchlist.get_instrument(symbol)
+
+            if instrument is not None:
+                for signal in trend_signals:
+                    signal.security_id = instrument.security_id
+
+            signals.extend(trend_signals)
 
             #
             # Volume Scanner.
             #
-            signals.extend(
-                self.volume.scan(
-                    symbol,
-                    candles,
-                )
+            volume_signals = self.volume.scan(
+                symbol,
+                candles,
             )
+
+            if instrument is not None:
+                for signal in volume_signals:
+                    signal.security_id = instrument.security_id
+
+            signals.extend(volume_signals)
+
+        #
+        # Update runtime signal store.
+        #
+        for signal in signals:
+            self.market_store.update_signal(signal)
 
         return signals
 

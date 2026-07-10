@@ -1,24 +1,41 @@
+"""
+Calculated technical indicators.
+"""
+
+from __future__ import annotations
+
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(slots=True)
 class IndicatorData:
     """
-    Calculated technical indicators for one symbol.
+    Latest calculated technical indicators for a stock.
+
+    This model stores only the latest indicator values.
+    Indicator calculations are performed by the Indicator Engine.
     """
 
+    # Live market price
     ltp: float
 
+    # Trend
     ema20: float | None = None
-
     ema50: float | None = None
 
+    # Momentum
     rsi14: float | None = None
 
+    # Intraday
     vwap: float | None = None
 
+    # Volatility
     atr14: float | None = None
 
+    # Volume
     average_volume20: float | None = None
-
     relative_volume: float | None = None
+
+    # Runtime
+    updated_at: datetime | None = None

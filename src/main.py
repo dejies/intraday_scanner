@@ -6,14 +6,16 @@ from __future__ import annotations
 
 import threading
 import time
+from PySide6.QtWidgets import QApplication
 
-from src.dashboard import Dashboard
+from src.dashboard.dashboard_window import DashboardWindow
+from src.dashboard.dashboard_controller import DashboardController
 from src.scanner import Scanner
-from src.ranking import SignalRanking
 from src.services.market_data import MarketData
 from src.services.historical_data import HistoricalDataService
 from src.services.websocket_client import WebSocketClient
 from src.services.watchlist import WatchlistService
+from src.core.market_data_store import MarketDataStore
 from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
@@ -27,6 +29,7 @@ def main() -> None:
     # Shared MarketData
     #
     market_data = MarketData()
+    market_store = MarketDataStore()
     instrument_master = InstrumentMasterService()
     instrument_master.load()
     print()
@@ -49,6 +52,10 @@ def main() -> None:
     )
 
     watchlist.load()
+
+    market_store.register_instruments(
+        watchlist.get_all()
+    )
     #
     # Load historical candles.
     #
@@ -68,6 +75,7 @@ def main() -> None:
     #
     websocket = WebSocketClient(
         market_data=market_data,
+        market_store=market_store,
         watchlist=watchlist,
     )
 
@@ -84,11 +92,22 @@ def main() -> None:
     #
     scanner = Scanner(
         market_data=market_data,
+        market_store=market_store,
+        watchlist=watchlist,
     )
 
-    ranking = SignalRanking()
+    app = QApplication([])
 
-    dashboard = Dashboard()
+    window = DashboardWindow()
+
+    controller = DashboardController(
+        window=window,
+        market_store=market_store,
+    )
+
+    controller.start()
+
+    window.show()
 
     print()
     print("Scanner started...")
@@ -96,21 +115,22 @@ def main() -> None:
 
     try:
 
-        while True:
+        def scanner_loop():
 
-            signals = scanner.scan()
+            while True:
+                scanner.scan()
 
-            ranked = ranking.rank(
-                signals,
-            )
+                time.sleep(1)
 
-            dashboard.display(
-                ranked,
-                scanner.get_latest_indicators(),
-                connected=websocket.is_connected(),
-            )
+        scanner_thread = threading.Thread(
+            target=scanner_loop,
+            daemon=True,
+            name="Scanner",
+        )
 
-            time.sleep(1)
+        scanner_thread.start()
+
+        app.exec()
 
     except KeyboardInterrupt:
 

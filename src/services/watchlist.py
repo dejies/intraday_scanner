@@ -46,8 +46,7 @@ class WatchlistService(BaseService):
         #
         self._symbol_lookup: dict[str, Instrument] = {}
 
-        self._security_lookup: dict[int, str] = {}
-
+        self._security_lookup: dict[int, Instrument] = {}
     # ------------------------------------------------------------------
 
     def load(self) -> None:
@@ -129,7 +128,7 @@ class WatchlistService(BaseService):
 
                     self._security_lookup[
                         instrument.security_id
-                    ] = instrument.symbol
+                    ] = instrument
 
             self.logger.info(
                 "Loaded %d enabled instruments.",
@@ -176,9 +175,14 @@ class WatchlistService(BaseService):
         Return symbol for a security id.
         """
 
-        return self._security_lookup.get(
+        instrument = self._security_lookup.get(
             int(security_id)
         )
+
+        if instrument is None:
+            return None
+
+        return instrument.symbol
 
     # ------------------------------------------------------------------
 
@@ -194,6 +198,17 @@ class WatchlistService(BaseService):
             symbol.upper()
         )
 
+    def get_instrument_by_security_id(
+            self,
+            security_id: int,
+    ) -> Instrument | None:
+        """
+        Return Instrument by security id.
+        """
+
+        return self._security_lookup.get(
+            int(security_id)
+        )
     # ------------------------------------------------------------------
 
     def has_symbol(

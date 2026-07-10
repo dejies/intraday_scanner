@@ -10,7 +10,12 @@ from src.models.candle import Candle
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
-from src.models.instrument import Instrument
+from src.providers.dhan.tick_processor import TickProcessor
+from src.core.market_data_store import MarketDataStore
+from src.models.enums import ConnectionState
+from datetime import time
+from src.models.enums import MarketState
+
 
 class WebSocketClient(BaseService):
     """
@@ -20,6 +25,7 @@ class WebSocketClient(BaseService):
     def __init__(
             self,
             market_data: MarketData,
+            market_store: MarketDataStore,
             watchlist: WatchlistService,
     ) -> None:
         super().__init__()
@@ -30,6 +36,9 @@ class WebSocketClient(BaseService):
         #
         self.watchlist = watchlist
 
+        self.tick_processor = TickProcessor(
+            self.watchlist
+        )
         #
         # Shared market data store
         #
@@ -37,6 +46,8 @@ class WebSocketClient(BaseService):
         # Shared MarketData instance.
         #
         self.market_data = market_data or MarketData()
+
+        self.market_store = market_store
 
         #
         # Dhan Context
@@ -81,13 +92,39 @@ class WebSocketClient(BaseService):
     # ------------------------------------------------------------------
 
     def on_connect(self, feed):
+        """
+        Called when the WebSocket connection is established.
+        """
+
         self._connected = True
+
+        self.market_store.update_market_status(
+            lambda status: setattr(
+                status,
+                "connection_state",
+                ConnectionState.CONNECTED,
+            )
+        )
+
         self.logger.info(
             "Connected to Dhan Market Feed."
         )
 
     def on_close(self, feed):
+        """
+        Called when the WebSocket connection is closed.
+        """
+
         self._connected = False
+
+        self.market_store.update_market_status(
+            lambda status: setattr(
+                status,
+                "connection_state",
+                ConnectionState.DISCONNECTED,
+            )
+        )
+
         self.logger.warning(
             "Market Feed connection closed."
         )
@@ -100,6 +137,18 @@ class WebSocketClient(BaseService):
         return self._connected
 
     def on_error(self, feed, error):
+        """
+        Called when a WebSocket error occurs.
+        """
+
+        self.market_store.update_market_status(
+            lambda status: setattr(
+                status,
+                "connection_state",
+                ConnectionState.DISCONNECTED,
+            )
+        )
+
         self.logger.exception(
             "WebSocket Error: %s",
             error,
@@ -110,76 +159,43 @@ class WebSocketClient(BaseService):
     def on_message(self, feed, message):
         """
         Handle decoded market data received from Dhan.
-
-        Current Dhan SDK (v2.x) delivers live market data
-        through this callback.
         """
-
-        #
-        # Ignore unexpected messages.
-        #
-        if not isinstance(message, dict):
-            return
-
-        #
-        # We only process Full Data packets.
-        #
-        if message.get("type") != "Full Data":
-            return
 
         try:
 
-            security_id = int(
-                message["security_id"]
+            #
+            # Convert Dhan message to our Tick model.
+            #
+            tick = self.tick_processor.process(
+                message
+            )
+
+            self._update_market_state()
+
+            self.market_store.update_tick(tick)
+
+            if tick is None:
+                return
+
+            #
+            # Continue with existing candle processing.
+            #
+            minute = tick.timestamp.strftime(
+                "%Y-%m-%d %H:%M"
             )
 
             symbol = self.watchlist.get_symbol(
-                security_id
+                tick.security_id
             )
 
             if symbol is None:
                 return
 
-            #
-            # Latest traded price
-            #
-            price = float(
-                message["LTP"]
-            )
-
-            ltq = int(message["LTQ"])
-
-            #
-            # Trade time
-            #
-            trade_time = datetime.strptime(
-                message["LTT"],
-                "%H:%M:%S",
-            )
-
-            #
-            # Attach today's date.
-            #
-            now = datetime.now()
-
-            trade_time = trade_time.replace(
-                year=now.year,
-                month=now.month,
-                day=now.day,
-            )
-
-            minute = trade_time.strftime(
-                "%Y-%m-%d %H:%M"
-            )
-
-            #
-            # Forward the tick.
-            #
             self._process_tick(
                 symbol=symbol,
-                price=price,
-                volume=ltq,
-                trade_time=trade_time,
+                price=float(tick.ltp),
+                volume=tick.volume,
+                trade_time=tick.timestamp,
                 minute=minute,
             )
 
@@ -467,4 +483,24 @@ class WebSocketClient(BaseService):
         self.logger.info(
             "Initialized %d working candles.",
             len(self._working_candles),
+        )
+
+    def _update_market_state(self) -> None:
+        """
+        Update the current market state.
+        """
+
+        now = datetime.now().time()
+
+        if time(9, 15) <= now <= time(15, 30):
+            state = MarketState.OPEN
+        else:
+            state = MarketState.CLOSED
+
+        self.market_store.update_market_status(
+            lambda status: setattr(
+                status,
+                "market_state",
+                state,
+            )
         )

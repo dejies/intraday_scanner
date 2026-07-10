@@ -7,13 +7,13 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel,
+    QHBoxLayout,
+    QHeaderView,
     QMainWindow,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
-    QHBoxLayout,
-    QHeaderView,
 )
 
 
@@ -33,6 +33,9 @@ class DashboardWindow(QMainWindow):
 
     SELL_COLUMNS = BUY_COLUMNS
 
+    SYMBOL_COLUMN = 0
+    CONFIDENCE_COLUMN = 5
+
     def __init__(self) -> None:
 
         super().__init__()
@@ -46,7 +49,41 @@ class DashboardWindow(QMainWindow):
             900,
         )
 
+        #
+        # Remember current sorting for both tables.
+        # Default = Confidence DESC
+        #
+        self._buy_sort_column = self.CONFIDENCE_COLUMN
+        self._buy_sort_order = Qt.DescendingOrder
+
+        self._sell_sort_column = self.CONFIDENCE_COLUMN
+        self._sell_sort_order = Qt.DescendingOrder
+
         self._build_ui()
+
+        #
+        # Apply default sorting.
+        #
+        self.buy_table.sortByColumn(
+            self.CONFIDENCE_COLUMN,
+            Qt.DescendingOrder,
+        )
+
+        self.sell_table.sortByColumn(
+            self.CONFIDENCE_COLUMN,
+            Qt.DescendingOrder,
+        )
+
+        #
+        # Listen for user sorting.
+        #
+        self.buy_table.horizontalHeader().sortIndicatorChanged.connect(
+            self._buy_sort_changed
+        )
+
+        self.sell_table.horizontalHeader().sortIndicatorChanged.connect(
+            self._sell_sort_changed
+        )
 
     # ------------------------------------------------------------------
 
@@ -58,10 +95,12 @@ class DashboardWindow(QMainWindow):
             central
         )
 
-        layout = QVBoxLayout(central)
+        layout = QVBoxLayout(
+            central
+        )
 
         #
-        # Status Bar
+        # Status
         #
         status_layout = QHBoxLayout()
 
@@ -110,7 +149,7 @@ class DashboardWindow(QMainWindow):
         )
 
         #
-        # BUY Section
+        # BUY
         #
         layout.addWidget(
             QLabel("BUY Signals")
@@ -125,7 +164,7 @@ class DashboardWindow(QMainWindow):
         )
 
         #
-        # SELL Section
+        # SELL
         #
         layout.addWidget(
             QLabel("SELL Signals")
@@ -142,8 +181,8 @@ class DashboardWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _create_table(
-            self,
-            columns: tuple[str, ...],
+        self,
+        columns: tuple[str, ...],
     ) -> QTableWidget:
 
         table = QTableWidget()
@@ -180,16 +219,158 @@ class DashboardWindow(QMainWindow):
             QHeaderView.Stretch
         )
 
+        table.setSortingEnabled(
+            True
+        )
+
         return table
 
     # ------------------------------------------------------------------
 
+    def _buy_sort_changed(
+        self,
+        column: int,
+        order: Qt.SortOrder,
+    ) -> None:
+
+        self._buy_sort_column = column
+        self._buy_sort_order = order
+
+    # ------------------------------------------------------------------
+
+    def _sell_sort_changed(
+        self,
+        column: int,
+        order: Qt.SortOrder,
+    ) -> None:
+
+        self._sell_sort_column = column
+        self._sell_sort_order = order
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _selected_symbol(
+        table: QTableWidget,
+    ) -> str | None:
+
+        row = table.currentRow()
+
+        if row < 0:
+            return None
+
+        item = table.item(
+            row,
+            DashboardWindow.SYMBOL_COLUMN,
+        )
+
+        if item is None:
+            return None
+
+        return item.text()
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _restore_selection(
+        table: QTableWidget,
+        symbol: str | None,
+    ) -> None:
+
+        if symbol is None:
+            return
+
+        for row in range(
+            table.rowCount()
+        ):
+
+            item = table.item(
+                row,
+                DashboardWindow.SYMBOL_COLUMN,
+            )
+
+            if (
+                item is not None
+                and item.text() == symbol
+            ):
+                table.selectRow(
+                    row
+                )
+                return
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _find_row(
+        table: QTableWidget,
+        symbol: str,
+    ) -> int:
+
+        for row in range(
+            table.rowCount()
+        ):
+
+            item = table.item(
+                row,
+                DashboardWindow.SYMBOL_COLUMN,
+            )
+
+            if (
+                item is not None
+                and item.text() == symbol
+            ):
+                return row
+
+        return -1
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _set_cell(
+        table: QTableWidget,
+        row: int,
+        column: int,
+        value: str,
+    ) -> None:
+
+        value = str(value)
+
+        item = table.item(
+            row,
+            column,
+        )
+
+        if item is None:
+
+            item = QTableWidgetItem(
+                value
+            )
+
+            item.setTextAlignment(
+                Qt.AlignCenter
+            )
+
+            table.setItem(
+                row,
+                column,
+                item,
+            )
+
+            return
+
+        if item.text() != value:
+            item.setText(
+                value
+            )
+
+    # ------------------------------------------------------------------
+
     def update_status(
-            self,
-            market_status: str,
-            connected: bool,
-            watching: int,
-            current_datetime: str,
+        self,
+        market_status: str,
+        connected: bool,
+        watching: int,
+        current_datetime: str,
     ) -> None:
 
         self.market_label.setText(
@@ -213,53 +394,153 @@ class DashboardWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def update_buy_table(
-            self,
-            rows: list[list[str]],
+        self,
+        rows: list[list[str]],
     ) -> None:
 
         self._update_table(
-            self.buy_table,
-            rows,
+            table=self.buy_table,
+            rows=rows,
+            sort_column=self._buy_sort_column,
+            sort_order=self._buy_sort_order,
         )
 
     # ------------------------------------------------------------------
 
     def update_sell_table(
-            self,
-            rows: list[list[str]],
+        self,
+        rows: list[list[str]],
     ) -> None:
 
         self._update_table(
-            self.sell_table,
-            rows,
+            table=self.sell_table,
+            rows=rows,
+            sort_column=self._sell_sort_column,
+            sort_order=self._sell_sort_order,
         )
 
     # ------------------------------------------------------------------
 
-    @staticmethod
+    @classmethod
     def _update_table(
-            table: QTableWidget,
-            rows: list[list[str]],
+        cls,
+        table: QTableWidget,
+        rows: list[list[str]],
+        sort_column: int,
+        sort_order: Qt.SortOrder,
     ) -> None:
 
-        table.setRowCount(
-            len(rows)
+        selected_symbol = cls._selected_symbol(
+            table
         )
 
-        for row_index, row in enumerate(rows):
+        #
+        # Disable sorting while updating.
+        #
+        table.setSortingEnabled(
+            False
+        )
 
-            for column_index, value in enumerate(row):
+        #
+        # Remove duplicate symbols from incoming data.
+        #
+        unique_rows: dict[str, list[str]] = {}
 
-                item = QTableWidgetItem(
-                    str(value)
+        for row in rows:
+
+            if not row:
+                continue
+
+            symbol = str(
+                row[
+                    cls.SYMBOL_COLUMN
+                ]
+            )
+
+            unique_rows[
+                symbol
+            ] = row
+
+        #
+        # Remove symbols that disappeared.
+        #
+        existing_symbols = []
+
+        for row in range(
+            table.rowCount()
+        ):
+
+            item = table.item(
+                row,
+                cls.SYMBOL_COLUMN,
+            )
+
+            if item is not None:
+                existing_symbols.append(
+                    item.text()
                 )
 
-                item.setTextAlignment(
-                    Qt.AlignCenter
+        for symbol in reversed(
+            existing_symbols
+        ):
+
+            if symbol not in unique_rows:
+
+                row = cls._find_row(
+                    table,
+                    symbol,
                 )
 
-                table.setItem(
-                    row_index,
-                    column_index,
-                    item,
+                if row >= 0:
+                    table.removeRow(
+                        row
+                    )
+
+        #
+        # Update existing rows / insert new rows.
+        #
+        for symbol, row_data in unique_rows.items():
+
+            row = cls._find_row(
+                table,
+                symbol,
+            )
+
+            if row < 0:
+
+                row = table.rowCount()
+
+                table.insertRow(
+                    row
                 )
+
+            for column, value in enumerate(
+                row_data
+            ):
+
+                cls._set_cell(
+                    table,
+                    row,
+                    column,
+                    value,
+                )
+
+        #
+        # Restore sorting.
+        #
+        table.setSortingEnabled(
+            True
+        )
+
+        table.sortByColumn(
+            sort_column,
+            sort_order,
+        )
+
+        #
+        # Restore previous selection.
+        #
+        cls._restore_selection(
+            table,
+            selected_symbol,
+        )

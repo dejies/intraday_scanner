@@ -65,7 +65,7 @@ class BreakoutScanner:
                     current_ltp=latest.close,
                     confidence=85,
                     message="Price breakdown with volume confirmation",
-                    timestamp=latest.timestamp,
+                    timestamp=latest.candle_time,
                 )
             )
 

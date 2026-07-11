@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from src.models.candle import Candle
 from src.models.indicator import IndicatorData
-
+from decimal import Decimal
 
 class IndicatorEngine:
     """
@@ -121,8 +121,7 @@ class IndicatorEngine:
         if len(candles) < period:
             return None
 
-        multiplier = 2 / (period + 1)
-
+        multiplier = Decimal("2") / Decimal(period + 1)
         #
         # Initial EMA uses SMA.
         #
@@ -252,19 +251,19 @@ class IndicatorEngine:
         if not candles:
             return None
 
-        today = candles[-1].timestamp.date()
+        today = candles[-1].candle_time.date()
 
         todays_candles = [
             candle
             for candle in candles
-            if candle.timestamp.date() == today
+            if candle.candle_time.date() == today
         ]
 
         if not todays_candles:
             return None
 
-        total_price_volume = 0.0
-        total_volume = 0
+        total_price_volume = Decimal("0")
+        total_volume = Decimal("0")
 
         for candle in todays_candles:
             typical_price = (
@@ -275,18 +274,15 @@ class IndicatorEngine:
 
             total_price_volume += (
                     typical_price
-                    * candle.volume
+                    * Decimal(candle.volume)
             )
 
-            total_volume += candle.volume
+            total_volume += Decimal(candle.volume)
 
         if total_volume == 0:
             return None
 
-        return round(
-            total_price_volume / total_volume,
-            2,
-        )
+        return total_price_volume / total_volume
 
 
 def highest_high(

@@ -20,7 +20,9 @@ from src.models.instrument import Instrument
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
+from decimal import Decimal
 
+from src.models.candle_interval import CandleInterval
 
 class HistoricalDataService(BaseService):
     """
@@ -140,6 +142,7 @@ class HistoricalDataService(BaseService):
             ) == "success":
 
                 candles = self._convert_to_candles(
+                    instrument,
                     response,
                 )
 
@@ -418,6 +421,7 @@ class HistoricalDataService(BaseService):
 
     def _convert_to_candles(
             self,
+            instrument: Instrument,
             response: dict,
     ) -> list[Candle]:
         """
@@ -496,20 +500,17 @@ class HistoricalDataService(BaseService):
                 candles.append(
 
                     Candle(
-
-                        timestamp=datetime.fromtimestamp(
+                        security_id=instrument.security_id,
+                        interval=CandleInterval.ONE_MINUTE,
+                        candle_time=datetime.fromtimestamp(
                             timestamps[index]
                         ),
-
-                        open=float(opens[index]),
-
-                        high=float(highs[index]),
-
-                        low=float(lows[index]),
-
-                        close=float(closes[index]),
-
+                        open=Decimal(str(opens[index])),
+                        high=Decimal(str(highs[index])),
+                        low=Decimal(str(lows[index])),
+                        close=Decimal(str(closes[index])),
                         volume=int(volumes[index]),
+                        is_closed=True,
                     )
                 )
 

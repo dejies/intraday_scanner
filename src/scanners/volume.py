@@ -49,7 +49,7 @@ class VolumeScanner:
                     current_ltp=latest.close,
                     confidence=75,
                     message="Bullish volume spike",
-                    timestamp=latest.timestamp,
+                    timestamp=latest.candle_time,
                 )
             )
 

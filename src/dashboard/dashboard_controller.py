@@ -188,5 +188,4 @@ class DashboardController(QObject):
                 ),
             }
 
-        print(details)
         return details

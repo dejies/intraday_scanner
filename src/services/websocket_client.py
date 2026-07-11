@@ -2,18 +2,16 @@
 Dhan Market Feed WebSocket Client
 """
 
-from datetime import datetime
-
 from dhanhq import DhanContext, MarketFeed
 
-from src.models.candle import Candle
+from src.services.candle_service import CandleService
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
 from src.providers.dhan.tick_processor import TickProcessor
 from src.core.market_data_store import MarketDataStore
 from src.models.enums import ConnectionState
-from datetime import time
+from datetime import datetime, time
 from src.models.enums import MarketState
 
 
@@ -27,6 +25,7 @@ class WebSocketClient(BaseService):
             market_data: MarketData,
             market_store: MarketDataStore,
             watchlist: WatchlistService,
+            candle_service: CandleService,
     ) -> None:
         super().__init__()
 
@@ -49,6 +48,7 @@ class WebSocketClient(BaseService):
 
         self.market_store = market_store
 
+        self.candle_service = candle_service
         #
         # Dhan Context
         #
@@ -58,30 +58,6 @@ class WebSocketClient(BaseService):
         )
 
         self.feed = None
-
-        # ----------------------------------------------------------
-        # Working candle for every symbol.
-        #
-        # Example:
-        #
-        # {
-        #     "INFY": Candle(...),
-        #     "RELIANCE": Candle(...)
-        # }
-        # ----------------------------------------------------------
-        self._working_candles: dict[str, Candle] = {}
-
-        # ----------------------------------------------------------
-        # Current minute for every symbol.
-        #
-        # Example:
-        #
-        # {
-        #     "INFY": "09:31",
-        #     "RELIANCE": "09:31"
-        # }
-        # ----------------------------------------------------------
-        self._current_minute: dict[str, str] = {}
 
         self.logger.info(
             "WebSocketClient initialized."
@@ -172,32 +148,22 @@ class WebSocketClient(BaseService):
 
             self._update_market_state()
 
-            self.market_store.update_tick(tick)
+            tick = self.tick_processor.process(message)
 
             if tick is None:
                 return
 
-            #
-            # Continue with existing candle processing.
-            #
-            minute = tick.timestamp.strftime(
-                "%Y-%m-%d %H:%M"
+            self._update_market_state()
+
+            self.market_store.update_tick(tick)
+
+            result = self.candle_service.process_tick(tick)
+
+            self.market_store.update_candle(
+                tick.security_id,
+                result.current_candle,
             )
 
-            symbol = self.watchlist.get_symbol(
-                tick.security_id
-            )
-
-            if symbol is None:
-                return
-
-            self._process_tick(
-                symbol=symbol,
-                price=float(tick.ltp),
-                volume=tick.volume,
-                trade_time=tick.timestamp,
-                minute=minute,
-            )
 
         except Exception:
 
@@ -218,177 +184,6 @@ class WebSocketClient(BaseService):
 
     # ------------------------------------------------------------------
 
-    def _process_tick(
-            self,
-            symbol: str,
-            price: float,
-            volume: int,
-            trade_time: datetime,
-            minute: str,
-    ) -> None:
-        """
-        Process one live market tick.
-        """
-
-        #
-        # Safety fallback.
-        #
-        if symbol not in self._working_candles:
-            self.logger.warning(
-                "No working candle for %s. Creating one.",
-                symbol,
-            )
-
-            self._start_new_candle(
-                symbol=symbol,
-                price=price,
-                volume=volume,
-                trade_time=trade_time,
-                minute=minute,
-            )
-
-            return
-
-        #
-        # First tick for this symbol.
-        #
-        if symbol not in self._working_candles:
-            self._start_new_candle(
-                symbol=symbol,
-                price=price,
-                volume=volume,
-                trade_time=trade_time,
-                minute=minute,
-            )
-
-            return
-
-        #
-        # Same minute -> update candle.
-        #
-        if self._current_minute[symbol] == minute:
-            self._update_candle(
-                symbol=symbol,
-                price=price,
-                volume=volume,
-            )
-
-            return
-
-        #
-        # Minute changed.
-        #
-        self._finalize_candle(symbol)
-
-        self._start_new_candle(
-            symbol=symbol,
-            price=price,
-            volume=volume,
-            trade_time=trade_time,
-            minute=minute,
-        )
-
-    def _start_new_candle(
-            self,
-            symbol: str,
-            price: float,
-            volume: int,
-            trade_time: datetime,
-            minute: str,
-    ) -> None:
-        """
-        Start a new one-minute candle.
-        """
-
-        candle = Candle(
-            timestamp=trade_time,
-            open=price,
-            high=price,
-            low=price,
-            close=price,
-            volume=volume,
-        )
-
-        self._working_candles[symbol] = candle
-
-        self._current_minute[symbol] = minute
-
-    def _update_candle(
-            self,
-            symbol: str,
-            price: float,
-            volume: int,
-    ) -> None:
-        """
-        Update the current working candle.
-        """
-
-        candle = self._working_candles[symbol]
-
-        if price > candle.high:
-            candle.high = price
-
-        if price < candle.low:
-            candle.low = price
-
-        candle.close = price
-
-        #
-        # Version 1:
-        # We accumulate the received value.
-        #
-        candle.volume += volume
-
-    def _finalize_candle(
-            self,
-            symbol: str,
-    ) -> None:
-        """
-        Store completed candle.
-        """
-
-        candle = self._working_candles.get(symbol)
-
-        if candle is None:
-            return
-
-        latest = self.market_data.get_latest_candle(
-            symbol
-        )
-
-        if (
-                latest is not None
-                and latest.timestamp.replace(
-            second=0,
-            microsecond=0,
-        )
-                == candle.timestamp.replace(
-            second=0,
-            microsecond=0,
-        )
-        ):
-
-            self.market_data.replace_latest_candle(
-                symbol,
-                candle,
-            )
-
-        else:
-
-            self.market_data.add_candle(
-                symbol,
-                candle,
-            )
-
-        # self.logger.info(
-        #     "%s  O:%.2f H:%.2f L:%.2f C:%.2f V:%d",
-        #     symbol,
-        #     candle.open,
-        #     candle.high,
-        #     candle.low,
-        #     candle.close,
-        #     candle.volume,
-        # )
 
 
     def _get_instruments(self):
@@ -431,7 +226,7 @@ class WebSocketClient(BaseService):
         #
         # Continue from historical candles.
         #
-        self._initialize_working_candles()
+        #self._initialize_working_candles()
 
         self.feed = MarketFeed(
             dhan_context=self.context,
@@ -451,39 +246,6 @@ class WebSocketClient(BaseService):
             "Market Feed thread started."
         )
 
-    def _initialize_working_candles(self) -> None:
-        """
-        Initialize working candles from historical data.
-        """
-
-        for symbol in self.market_data.get_symbols():
-
-            candle = self.market_data.get_latest_candle(
-                symbol
-            )
-
-            if candle is None:
-                continue
-
-            self._working_candles[symbol] = Candle(
-                timestamp=candle.timestamp,
-                open=candle.open,
-                high=candle.high,
-                low=candle.low,
-                close=candle.close,
-                volume=candle.volume,
-            )
-
-            self._current_minute[symbol] = (
-                candle.timestamp.strftime(
-                    "%Y-%m-%d %H:%M"
-                )
-            )
-
-        self.logger.info(
-            "Initialized %d working candles.",
-            len(self._working_candles),
-        )
 
     def _update_market_state(self) -> None:
         """

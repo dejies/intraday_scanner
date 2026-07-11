@@ -19,6 +19,10 @@ from src.core.market_data_store import MarketDataStore
 from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
+from src.database import SQLiteManager
+from src.repositories import CandleRepository
+from src.builders import CandleBuilder
+from src.services import CandleService
 
 def main() -> None:
     """
@@ -30,6 +34,16 @@ def main() -> None:
     #
     market_data = MarketData()
     market_store = MarketDataStore()
+    sqlite = SQLiteManager("data/intraday_scanner.db")
+
+    candle_repository = CandleRepository(sqlite)
+
+    candle_builder = CandleBuilder()
+
+    candle_service = CandleService(
+        builder=candle_builder,
+        repository=candle_repository,
+    )
     instrument_master = InstrumentMasterService()
     instrument_master.load()
     print()
@@ -77,6 +91,7 @@ def main() -> None:
         market_data=market_data,
         market_store=market_store,
         watchlist=watchlist,
+        candle_service=candle_service,
     )
 
     websocket_thread = threading.Thread(

@@ -94,7 +94,7 @@ class TrendScanner:
                 current_ltp=indicators.ltp,
                 confidence=confidence,
                 message=message,
-                timestamp=latest.timestamp,
+                timestamp=latest.candle_time,
             )
         )
 

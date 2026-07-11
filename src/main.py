@@ -19,10 +19,19 @@ from src.core.market_data_store import MarketDataStore
 from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
+
 from src.database import SQLiteManager
-from src.repositories import CandleRepository
+
+from src.repositories import (
+    CandleRepository,
+    IndicatorRepository,
+)
+
 from src.builders import CandleBuilder
+
 from src.services import CandleService
+from src.services.indicator_service import IndicatorService
+
 
 def main() -> None:
     """
@@ -34,20 +43,42 @@ def main() -> None:
     #
     market_data = MarketData()
     market_store = MarketDataStore()
-    sqlite = SQLiteManager("data/intraday_scanner.db")
 
+    sqlite = SQLiteManager(
+        "data/intraday_scanner.db"
+    )
+
+    #
+    # Repositories
+    #
     candle_repository = CandleRepository(sqlite)
 
+    indicator_repository = IndicatorRepository(
+        sqlite,
+    )
+
+    #
+    # Builders
+    #
     candle_builder = CandleBuilder()
+
+    #
+    # Services
+    #
+    indicator_service = IndicatorService()
 
     candle_service = CandleService(
         builder=candle_builder,
         repository=candle_repository,
+        indicator_repository=indicator_repository,
+        indicator_service=indicator_service,
+        market_data_store=market_store,
     )
+
     instrument_master = InstrumentMasterService()
     instrument_master.load()
-    print()
 
+    print()
     print("=" * 70)
     print("Instrument Master")
     print("=" * 70)
@@ -70,6 +101,7 @@ def main() -> None:
     market_store.register_instruments(
         watchlist.get_all()
     )
+
     #
     # Load historical candles.
     #
@@ -81,7 +113,6 @@ def main() -> None:
     historical.load()
 
     print()
-
     print("Historical data loaded")
 
     #
@@ -103,7 +134,7 @@ def main() -> None:
     websocket_thread.start()
 
     #
-    # Scanner components
+    # Scanner
     #
     scanner = Scanner(
         market_data=market_data,
@@ -134,7 +165,6 @@ def main() -> None:
 
             while True:
                 scanner.scan()
-
                 time.sleep(1)
 
         scanner_thread = threading.Thread(

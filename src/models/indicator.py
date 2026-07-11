@@ -21,11 +21,21 @@ class IndicatorData:
     ltp: float
 
     # Trend
+    ema9: float | None = None
     ema20: float | None = None
     ema50: float | None = None
+    ema200: float | None = None
 
     # Momentum
     rsi14: float | None = None
+
+    # MACD
+    macd: float | None = None
+    macd_signal: float | None = None
+    macd_histogram: float | None = None
+
+    # Trend Strength
+    adx14: float | None = None
 
     # Intraday
     vwap: float | None = None

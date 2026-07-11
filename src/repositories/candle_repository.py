@@ -16,16 +16,12 @@ MarketDataStore or WebSocket.
 
 from __future__ import annotations
 
-from typing import Iterable
+from datetime import datetime, timezone
+from decimal import Decimal
 
 from src.database import SQLiteManager
-from datetime import datetime, timezone
+from src.database.schema import TABLES, INDEXES
 from src.models import Candle, CandleInterval
-from src.database.schema import (
-    CANDLE_INDEXES,
-    CANDLE_TABLE_SQL,
-)
-from decimal import Decimal
 
 
 class CandleRepository:
@@ -34,46 +30,30 @@ class CandleRepository:
 
     def __init__(self, sqlite: SQLiteManager):
         self._sqlite = sqlite
-        self._create_table()
+        self._create_schema()
 
     # ---------------------------------------------------------
 
-    def _create_table(self):
-        self._sqlite.execute(CANDLE_TABLE_SQL)
+    def _create_schema(self):
+        """
+        Create database tables and indexes.
+        """
 
-        for index_sql in CANDLE_INDEXES:
-            self._sqlite.execute(index_sql)
+        #
+        # Create candle table only.
+        #
+        self._sqlite.execute(TABLES[0])
 
-    # ---------------------------------------------------------
-
-    def _create_indexes(self):
-
-        self._sqlite.execute(
-            f"""
-            CREATE INDEX IF NOT EXISTS
-            idx_security_interval
-            ON {self.TABLE_NAME}
-            (
-                security_id,
-                interval
-            )
-            """
-        )
-
-        self._sqlite.execute(
-            f"""
-            CREATE INDEX IF NOT EXISTS
-            idx_candle_time
-            ON {self.TABLE_NAME}
-            (
-                candle_time
-            )
-            """
-        )
+        #
+        # Create candle indexes only.
+        #
+        self._sqlite.execute(INDEXES[0])
+        self._sqlite.execute(INDEXES[1])
 
     # ---------------------------------------------------------
 
     def upsert(self, candle: Candle):
+
         sql = f"""
         INSERT INTO {self.TABLE_NAME}
         (
@@ -122,7 +102,11 @@ class CandleRepository:
 
     # ---------------------------------------------------------
 
-    def insert_many(self, candles: list[Candle]):
+    def insert_many(
+        self,
+        candles: list[Candle],
+    ):
+
         sql = f"""
         INSERT INTO {self.TABLE_NAME}
         (
@@ -161,9 +145,9 @@ class CandleRepository:
 
     def latest(
         self,
-        security_id,
-        interval,
-    ):
+        security_id: str,
+        interval: CandleInterval,
+    ) -> Candle | None:
 
         sql = f"""
         SELECT *
@@ -196,11 +180,11 @@ class CandleRepository:
     # ---------------------------------------------------------
 
     def history(
-            self,
-            security_id,
-            interval,
-            limit=100,
-    ):
+        self,
+        security_id: str,
+        interval: CandleInterval,
+        limit: int = 100,
+    ) -> list[Candle]:
 
         sql = f"""
         SELECT *
@@ -226,29 +210,61 @@ class CandleRepository:
             ),
         )
 
-        return [self._row_to_candle(row) for row in rows]
+        return [
+            self._row_to_candle(row)
+            for row in rows
+        ]
 
     # ---------------------------------------------------------
 
     def delete_all(self):
 
         self._sqlite.execute(
-            f"DELETE FROM {self.TABLE_NAME}"
+            f"""
+            DELETE FROM {self.TABLE_NAME}
+            """
         )
 
-    @staticmethod
-    def _to_epoch_ms(dt: datetime) -> int:
-        return int(dt.astimezone(timezone.utc).timestamp() * 1000)
+    # ---------------------------------------------------------
 
     @staticmethod
-    def _from_epoch_ms(epoch_ms: int) -> datetime:
-        return datetime.fromtimestamp(epoch_ms / 1000, tz=timezone.utc)
+    def _to_epoch_ms(
+        dt: datetime,
+    ) -> int:
 
-    def _row_to_candle(self, row) -> Candle:
+        return int(
+            dt.astimezone(
+                timezone.utc
+            ).timestamp() * 1000
+        )
+
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def _from_epoch_ms(
+        epoch_ms: int,
+    ) -> datetime:
+
+        return datetime.fromtimestamp(
+            epoch_ms / 1000,
+            tz=timezone.utc,
+        )
+
+    # ---------------------------------------------------------
+
+    def _row_to_candle(
+        self,
+        row,
+    ) -> Candle:
+
         return Candle(
             security_id=row["security_id"],
-            interval=CandleInterval(row["interval"]),
-            candle_time=self._from_epoch_ms(row["candle_time"]),
+            interval=CandleInterval(
+                row["interval"]
+            ),
+            candle_time=self._from_epoch_ms(
+                row["candle_time"]
+            ),
             open=Decimal(str(row["open"])),
             high=Decimal(str(row["high"])),
             low=Decimal(str(row["low"])),

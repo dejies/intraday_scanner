@@ -1,76 +1,101 @@
-from datetime import datetime
-from decimal import Decimal
+"""
+Smoke test for Milestone 6 - Part 1
 
-from builders import CandleBuilder
-from models.tick import Tick
-
-
-builder = CandleBuilder()
-
-tick = Tick(
-    security_id=1333,
-    timestamp=datetime.now(),
-    ltp=Decimal("1850.25"),
-    volume=100,
-)
-
-result = builder.process_tick(tick)
-
-
-timestamp = datetime.now()
-
-tick1 = Tick(
-    security_id=1333,
-    timestamp=timestamp,
-    ltp=Decimal("100"),
-    volume=100,
-)
-
-tick2 = Tick(
-    security_id=1333,
-    timestamp=timestamp,
-    ltp=Decimal("102"),
-    volume=110,
-)
-
-builder = CandleBuilder()
-
-builder.process_tick(tick1)
-result = builder.process_tick(tick2)
+Verifies:
+1. IndicatorType enum
+2. IndicatorRecord model
+3. SQLite schema creation
+4. Indicators table exists
+5. Index exists
+"""
 
 from datetime import datetime
-from decimal import Decimal
+import sqlite3
+from database.schema import TABLES, INDEXES
 
-from builders import CandleBuilder
-from models.tick import Tick
-
-builder = CandleBuilder()
-
-tick1 = Tick(
-    security_id=1333,
-    timestamp=datetime(2026, 7, 11, 9, 15, 10),
-    ltp=Decimal("100"),
-    volume=100,
+from models.indicator_record import (
+    IndicatorRecord,
+    IndicatorType,
 )
+from database.sqlite_manager import SQLiteManager
 
-tick2 = Tick(
-    security_id=1333,
-    timestamp=datetime(2026, 7, 11, 9, 15, 45),
-    ltp=Decimal("102"),
-    volume=110,
-)
 
-tick3 = Tick(
-    security_id=1333,
-    timestamp=datetime(2026, 7, 11, 9, 16, 5),
-    ltp=Decimal("103"),
-    volume=120,
-)
+def verify_indicator_model():
+    print("Testing IndicatorRecord...")
 
-builder.process_tick(tick1)
-builder.process_tick(tick2)
+    record = IndicatorRecord(
+        security_id=1333,
+        timeframe="1m",
+        indicator=IndicatorType.EMA_20,
+        candle_time=datetime.now(),
+        value=2456.78,
+    )
 
-result = builder.process_tick(tick3)
+    assert record.security_id == 1333
+    assert record.timeframe == "1m"
+    assert record.indicator == IndicatorType.EMA_20
+    assert record.value == 2456.78
 
-print("Completed:", result.completed_candles)
-print("Current:", result.current_candle)
+    print("✓ IndicatorRecord OK")
+
+
+def verify_database_schema():
+
+    print("Testing SQLite schema...")
+
+    db = SQLiteManager("src/data/test.db")
+
+
+
+    #
+    # Verify indicators table
+    #
+    rows = db.query(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type='table'
+        AND name='indicators'
+        """
+    )
+
+    assert len(rows) == 1
+
+    print("✓ indicators table exists")
+
+    #
+    # Verify lookup index
+    #
+    rows = db.query(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type='index'
+        AND name='idx_indicator_lookup'
+        """
+    )
+
+    assert len(rows) == 1
+
+    print("✓ indicator index exists")
+
+    db.close()
+
+
+def main():
+
+    print("=" * 60)
+    print("Milestone 6 - Part 1 Smoke Test")
+    print("=" * 60)
+
+    verify_indicator_model()
+    verify_database_schema()
+
+    print()
+    print("=" * 60)
+    print("✓ ALL TESTS PASSED")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

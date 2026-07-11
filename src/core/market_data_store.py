@@ -31,6 +31,7 @@ class MarketDataStore:
         self._stocks: dict[int, StockState] = {}
         self._market_status = MarketStatus()
         self._lock = RLock()
+        self._indicators: dict[str, IndicatorData] = {}
 
 
     def register_instrument(self, instrument: Instrument) -> None:
@@ -372,6 +373,7 @@ class MarketDataStore:
         """
         with self._lock:
             self._stocks.clear()
+            self._indicators.clear()
             self._market_status = MarketStatus()
 
     # ------------------------------------------------------------------
@@ -441,3 +443,25 @@ class MarketDataStore:
             stock.active_signal = None
 
             self._touch(stock)
+
+    def set_indicator_data(
+            self,
+            security_id: str,
+            indicator_data: IndicatorData,
+    ):
+        with self._lock:
+            self._indicators[security_id] = indicator_data
+
+    def get_indicator_data(
+            self,
+            security_id: str,
+    ) -> IndicatorData | None:
+        with self._lock:
+            return self._indicators.get(security_id)
+
+    def remove_indicator_data(
+            self,
+            security_id: str,
+    ):
+        with self._lock:
+            self._indicators.pop(security_id, None)

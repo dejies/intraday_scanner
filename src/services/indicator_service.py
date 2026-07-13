@@ -33,8 +33,8 @@ class IndicatorService:
     # ------------------------------------------------------------------
 
     def calculate(
-        self,
-        candles: list[Candle],
+            self,
+            candles: list[Candle],
     ) -> IndicatorData | None:
 
         if not candles:

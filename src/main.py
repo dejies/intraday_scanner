@@ -108,6 +108,10 @@ def main() -> None:
     historical = HistoricalDataService(
         market_data=market_data,
         watchlist=watchlist,
+        candle_repository=candle_repository,
+        indicator_repository=indicator_repository,
+        indicator_service=indicator_service,
+        market_data_store=market_store,
     )
 
     historical.load()

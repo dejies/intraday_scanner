@@ -4,7 +4,6 @@ Stock Inspection Dialog.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
@@ -23,9 +22,9 @@ class StockInspectionDialog(QDialog):
     """
 
     def __init__(
-            self,
-            stock: dict,
-            parent=None,
+        self,
+        stock: dict,
+        parent=None,
     ) -> None:
 
         super().__init__(parent)
@@ -39,186 +38,145 @@ class StockInspectionDialog(QDialog):
             )
         )
 
-        self.setModal(
-            True
-        )
-
-        self.setFixedSize(
-            450,
-            650,
-        )
+        self.setModal(True)
+        self.setFixedSize(500, 780)
 
         self._build_ui()
-
         self._load_data()
 
     # ------------------------------------------------------------------
 
-    def _build_ui(
-            self,
-    ) -> None:
+    def _build_ui(self):
 
-        root = QVBoxLayout(
-            self
-        )
+        root = QVBoxLayout(self)
 
         #
         # Header
         #
         header = QHBoxLayout()
 
-        self.symbol_title = QLabel(
-            "-"
-        )
+        self.symbol_title = QLabel("-")
+        self.signal_title = QLabel("-")
 
-        self.signal_title = QLabel(
-            "-"
-        )
-
-        header.addWidget(
-            self.symbol_title
-        )
-
+        header.addWidget(self.symbol_title)
         header.addStretch()
+        header.addWidget(self.signal_title)
 
-        header.addWidget(
-            self.signal_title
-        )
-
-        root.addLayout(
-            header
-        )
+        root.addLayout(header)
 
         line = QFrame()
+        line.setFrameShape(QFrame.HLine)
 
-        line.setFrameShape(
-            QFrame.HLine
-        )
-
-        root.addWidget(
-            line
-        )
+        root.addWidget(line)
 
         #
         # Price
         #
-        price_group = QGroupBox(
-            "Price"
-        )
+        price_group = QGroupBox("Price")
 
         self.price_layout = QFormLayout()
 
         self.symbol_value = QLabel()
         self.ltp_value = QLabel()
 
-        self.price_layout.addRow(
-            "Symbol",
-            self.symbol_value,
-        )
+        self.price_layout.addRow("Symbol", self.symbol_value)
+        self.price_layout.addRow("LTP", self.ltp_value)
 
-        self.price_layout.addRow(
-            "LTP",
-            self.ltp_value,
-        )
+        price_group.setLayout(self.price_layout)
 
-        price_group.setLayout(
-            self.price_layout
-        )
-
-        root.addWidget(
-            price_group
-        )
+        root.addWidget(price_group)
 
         #
-        # Moving Averages
+        # Trend
         #
-        ma_group = QGroupBox(
-            "Moving Averages"
-        )
+        trend_group = QGroupBox("Trend")
 
-        self.ma_layout = QFormLayout()
+        self.trend_layout = QFormLayout()
 
+        self.ema9_value = QLabel()
         self.ema20_value = QLabel()
         self.ema50_value = QLabel()
+        self.ema200_value = QLabel()
 
-        self.ma_layout.addRow(
-            "EMA20",
-            self.ema20_value,
-        )
+        self.trend_layout.addRow("EMA 9", self.ema9_value)
+        self.trend_layout.addRow("EMA 20", self.ema20_value)
+        self.trend_layout.addRow("EMA 50", self.ema50_value)
+        self.trend_layout.addRow("EMA 200", self.ema200_value)
 
-        self.ma_layout.addRow(
-            "EMA50",
-            self.ema50_value,
-        )
+        trend_group.setLayout(self.trend_layout)
 
-        ma_group.setLayout(
-            self.ma_layout
-        )
-
-        root.addWidget(
-            ma_group
-        )
+        root.addWidget(trend_group)
 
         #
         # Momentum
         #
-        momentum_group = QGroupBox(
-            "Momentum"
-        )
+        momentum_group = QGroupBox("Momentum")
 
         self.momentum_layout = QFormLayout()
 
-        self.rsi_value = QLabel()
+        self.rsi14_value = QLabel()
+        self.macd_value = QLabel()
+        self.macd_signal_value = QLabel()
+        self.macd_histogram_value = QLabel()
 
-        self.momentum_layout.addRow(
-            "RSI",
-            self.rsi_value,
-        )
+        self.momentum_layout.addRow("RSI 14", self.rsi14_value)
+        self.momentum_layout.addRow("MACD", self.macd_value)
+        self.momentum_layout.addRow("MACD Signal", self.macd_signal_value)
+        self.momentum_layout.addRow("MACD Histogram", self.macd_histogram_value)
 
-        momentum_group.setLayout(
-            self.momentum_layout
-        )
+        momentum_group.setLayout(self.momentum_layout)
 
-        root.addWidget(
-            momentum_group
-        )
+        root.addWidget(momentum_group)
+
+        #
+        # Trend Strength
+        #
+        adx_group = QGroupBox("Trend Strength")
+
+        self.adx_layout = QFormLayout()
+
+        self.adx14_value = QLabel()
+
+        self.adx_layout.addRow("ADX 14", self.adx14_value)
+
+        adx_group.setLayout(self.adx_layout)
+
+        root.addWidget(adx_group)
+
+        #
+        # Intraday
+        #
+        intraday_group = QGroupBox("Intraday")
+
+        self.intraday_layout = QFormLayout()
+
+        self.vwap_value = QLabel()
+
+        self.intraday_layout.addRow("VWAP", self.vwap_value)
+
+        intraday_group.setLayout(self.intraday_layout)
+
+        root.addWidget(intraday_group)
 
         #
         # Volume
         #
-        volume_group = QGroupBox(
-            "Volume"
-        )
+        volume_group = QGroupBox("Volume")
 
         self.volume_layout = QFormLayout()
 
-        self.vwap_value = QLabel()
         self.rvol_value = QLabel()
 
-        self.volume_layout.addRow(
-            "VWAP",
-            self.vwap_value,
-        )
+        self.volume_layout.addRow("RVOL", self.rvol_value)
 
-        self.volume_layout.addRow(
-            "RVOL",
-            self.rvol_value,
-        )
+        volume_group.setLayout(self.volume_layout)
 
-        volume_group.setLayout(
-            self.volume_layout
-        )
-
-        root.addWidget(
-            volume_group
-        )
+        root.addWidget(volume_group)
 
         #
         # Signal
         #
-        signal_group = QGroupBox(
-            "Signal"
-        )
+        signal_group = QGroupBox("Signal")
 
         self.signal_layout = QFormLayout()
 
@@ -235,142 +193,106 @@ class StockInspectionDialog(QDialog):
             self.confidence_value,
         )
 
-        signal_group.setLayout(
-            self.signal_layout
-        )
+        signal_group.setLayout(self.signal_layout)
 
-        root.addWidget(
-            signal_group
-        )
+        root.addWidget(signal_group)
 
         root.addStretch()
 
         #
-        # Close button
+        # Close Button
         #
         button_layout = QHBoxLayout()
 
         button_layout.addStretch()
 
-        close_button = QPushButton(
-            "Close"
-        )
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.accept)
 
-        close_button.clicked.connect(
-            self.accept
-        )
+        button_layout.addWidget(close_button)
 
-        button_layout.addWidget(
-            close_button
-        )
-
-        root.addLayout(
-            button_layout
-        )
+        root.addLayout(button_layout)
 
     # ------------------------------------------------------------------
 
-    def _load_data(
-            self,
-    ) -> None:
+    def _load_data(self) -> None:
         """
         Populate the dialog from the supplied stock dictionary.
         """
 
-        symbol = self._stock.get(
-            "symbol",
-            "-"
-        )
-
-        signal = self._stock.get(
-            "signal",
-            "-"
-        )
-
-        confidence = self._stock.get(
-            "confidence",
-            "-"
-        )
+        symbol = self._stock.get("symbol", "-")
+        signal = self._stock.get("signal", "-")
+        confidence = self._stock.get("confidence", "-")
 
         #
         # Header
         #
-        self.symbol_title.setText(
-            str(symbol)
-        )
-
-        self.signal_title.setText(
-            str(signal)
-        )
+        self.symbol_title.setText(str(symbol))
+        self.signal_title.setText(str(signal))
 
         #
         # Price
         #
-        self.symbol_value.setText(
-            str(symbol)
-        )
-
-        self.ltp_value.setText(
-            str(
-                self._stock.get(
-                    "ltp",
-                    "-"
-                )
-            )
-        )
+        self.symbol_value.setText(str(symbol))
+        self.ltp_value.setText(str(self._stock.get("ltp", "-")))
 
         #
-        # Moving Averages
+        # Trend
         #
+        self.ema9_value.setText(
+            str(self._stock.get("ema9", "-"))
+        )
+
         self.ema20_value.setText(
-            str(
-                self._stock.get(
-                    "ema20",
-                    "-"
-                )
-            )
+            str(self._stock.get("ema20", "-"))
         )
 
         self.ema50_value.setText(
-            str(
-                self._stock.get(
-                    "ema50",
-                    "-"
-                )
-            )
+            str(self._stock.get("ema50", "-"))
+        )
+
+        self.ema200_value.setText(
+            str(self._stock.get("ema200", "-"))
         )
 
         #
         # Momentum
         #
-        self.rsi_value.setText(
-            str(
-                self._stock.get(
-                    "rsi",
-                    "-"
-                )
-            )
+        self.rsi14_value.setText(
+            str(self._stock.get("rsi14", "-"))
+        )
+
+        self.macd_value.setText(
+            str(self._stock.get("macd", "-"))
+        )
+
+        self.macd_signal_value.setText(
+            str(self._stock.get("macd_signal", "-"))
+        )
+
+        self.macd_histogram_value.setText(
+            str(self._stock.get("macd_histogram", "-"))
+        )
+
+        #
+        # Trend Strength
+        #
+        self.adx14_value.setText(
+            str(self._stock.get("adx14", "-"))
+        )
+
+        #
+        # Intraday
+        #
+        self.vwap_value.setText(
+            str(self._stock.get("vwap", "-"))
         )
 
         #
         # Volume
         #
-        self.vwap_value.setText(
-            str(
-                self._stock.get(
-                    "vwap",
-                    "-"
-                )
-            )
-        )
-
         self.rvol_value.setText(
-            str(
-                self._stock.get(
-                    "rvol",
-                    "-"
-                )
-            )
+            str(self._stock.get("relative_volume", "-"))
         )
 
         #
@@ -389,8 +311,8 @@ class StockInspectionDialog(QDialog):
     # ------------------------------------------------------------------
 
     def update_stock(
-            self,
-            stock: dict,
+        self,
+        stock: dict,
     ) -> None:
         """
         Update the dialog with new stock information.

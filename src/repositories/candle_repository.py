@@ -108,7 +108,7 @@ class CandleRepository:
     ):
 
         sql = f"""
-        INSERT INTO {self.TABLE_NAME}
+        INSERT OR IGNORE  INTO {self.TABLE_NAME}
         (
             security_id,
             interval,

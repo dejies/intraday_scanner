@@ -23,6 +23,11 @@ from src.services.watchlist import WatchlistService
 from decimal import Decimal
 
 from src.models.candle_interval import CandleInterval
+from src.repositories import CandleRepository
+from src.services.indicator_service import IndicatorService
+from src.repositories import IndicatorRepository
+from src.core.market_data_store import MarketDataStore
+from src.models.indicator_mapper import IndicatorMapper
 
 class HistoricalDataService(BaseService):
     """
@@ -34,31 +39,27 @@ class HistoricalDataService(BaseService):
             self,
             market_data: MarketData,
             watchlist: WatchlistService,
+            candle_repository: CandleRepository,
+            indicator_repository: IndicatorRepository,
+            indicator_service: IndicatorService,
+            market_data_store: MarketDataStore,
     ) -> None:
 
         super().__init__()
 
-        #
-        # Shared MarketData.
-        #
         self.market_data = market_data
-
-        #
-        # Shared Watchlist.
-        #
         self.watchlist = watchlist
 
-        #
-        # Shared Dhan Context.
-        #
+        self.candle_repository = candle_repository
+        self.indicator_repository = indicator_repository
+        self.indicator_service = indicator_service
+        self.market_data_store = market_data_store
+
         self.context = DhanContext(
             self.settings.dhan_client_id,
             self.settings.dhan_access_token,
         )
 
-        #
-        # REST client.
-        #
         self.dhan = dhanhq(
             self.context,
         )
@@ -147,12 +148,35 @@ class HistoricalDataService(BaseService):
                 )
 
                 if candles:
-
                     self.market_data.add_candles(
                         instrument.symbol,
                         candles,
                     )
 
+                    self.candle_repository.insert_many(
+                        candles,
+                    )
+
+                    indicator_data = self.indicator_service.calculate(
+                        candles,
+                    )
+
+                    if indicator_data is not None:
+                        records = IndicatorMapper.to_records(
+                            security_id=instrument.security_id,
+                            timeframe=CandleInterval.ONE_MINUTE.value,
+                            candle_time=candles[-1].candle_time,
+                            data=indicator_data,
+                        )
+
+                        self.indicator_repository.insert_many(
+                            records,
+                        )
+
+                        self.market_data_store.set_indicator_data(
+                            instrument.security_id,
+                            indicator_data,
+                        )
                     self.logger.info(
                         "%s : Loaded %d candles.",
                         instrument.symbol,

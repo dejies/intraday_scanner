@@ -68,5 +68,5 @@ class TickProcessor:
             security_id=security_id,
             timestamp=trade_time,
             ltp=Decimal(str(message["LTP"])),
-            volume=int(message["LTQ"]),
+            volume=int(message["volume"]),
         )

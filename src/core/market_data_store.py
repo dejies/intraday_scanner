@@ -446,11 +446,19 @@ class MarketDataStore:
 
     def set_indicator_data(
             self,
-            security_id: str,
+            security_id: int,
             indicator_data: IndicatorData,
     ):
         with self._lock:
             self._indicators[security_id] = indicator_data
+
+            stock = self._get_optional_stock(
+                security_id
+            )
+
+            if stock is not None:
+                stock.indicator = indicator_data
+                self._touch(stock)
 
     def get_indicator_data(
             self,

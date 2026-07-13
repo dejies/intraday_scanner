@@ -133,15 +133,32 @@ class DashboardController(QObject):
         for stock in list(buy_stocks) + list(sell_stocks):
             tick = stock.tick
             indicator = stock.indicator
+            print(
+                stock.instrument.symbol,
+                indicator,
+            )
+
             signal = stock.active_signal
 
             details[stock.instrument.symbol] = {
 
                 "symbol": stock.instrument.symbol,
 
+                #
+                # Price
+                #
                 "ltp": (
-                    round(tick.ltp, 2)
+                    round(float(tick.ltp), 2)
                     if tick
+                    else "-"
+                ),
+
+                #
+                # Trend
+                #
+                "ema9": (
+                    round(indicator.ema9, 2)
+                    if indicator and indicator.ema9 is not None
                     else "-"
                 ),
 
@@ -157,24 +174,69 @@ class DashboardController(QObject):
                     else "-"
                 ),
 
-                "rsi": (
+                "ema200": (
+                    round(indicator.ema200, 2)
+                    if indicator and indicator.ema200 is not None
+                    else "-"
+                ),
+
+                #
+                # Momentum
+                #
+                "rsi14": (
                     round(indicator.rsi14, 2)
                     if indicator and indicator.rsi14 is not None
                     else "-"
                 ),
 
+                "macd": (
+                    round(indicator.macd, 4)
+                    if indicator and indicator.macd is not None
+                    else "-"
+                ),
+
+                "macd_signal": (
+                    round(indicator.macd_signal, 4)
+                    if indicator and indicator.macd_signal is not None
+                    else "-"
+                ),
+
+                "macd_histogram": (
+                    round(indicator.macd_histogram, 4)
+                    if indicator and indicator.macd_histogram is not None
+                    else "-"
+                ),
+
+                #
+                # Trend Strength
+                #
+                "adx14": (
+                    round(indicator.adx14, 2)
+                    if indicator and indicator.adx14 is not None
+                    else "-"
+                ),
+
+                #
+                # Intraday
+                #
                 "vwap": (
                     round(indicator.vwap, 2)
                     if indicator and indicator.vwap is not None
                     else "-"
                 ),
 
-                "rvol": (
+                #
+                # Volume
+                #
+                "relative_volume": (
                     round(indicator.relative_volume, 2)
                     if indicator and indicator.relative_volume is not None
                     else "-"
                 ),
 
+                #
+                # Signal
+                #
                 "signal": (
                     signal.strategy
                     if signal

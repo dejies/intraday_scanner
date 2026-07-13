@@ -133,10 +133,6 @@ class DashboardController(QObject):
         for stock in list(buy_stocks) + list(sell_stocks):
             tick = stock.tick
             indicator = stock.indicator
-            print(
-                stock.instrument.symbol,
-                indicator,
-            )
 
             signal = stock.active_signal
 

@@ -180,25 +180,31 @@ class CandleRepository:
     # ---------------------------------------------------------
 
     def history(
-        self,
-        security_id: str,
-        interval: CandleInterval,
-        limit: int = 100,
+            self,
+            security_id: str,
+            interval: CandleInterval,
+            limit: int = 100,
     ) -> list[Candle]:
-
         sql = f"""
         SELECT *
 
-        FROM {self.TABLE_NAME}
+        FROM
+        (
+            SELECT *
 
-        WHERE
+            FROM {self.TABLE_NAME}
 
-            security_id=?
-            AND interval=?
+            WHERE
 
-        ORDER BY candle_time DESC
+                security_id=?
+                AND interval=?
 
-        LIMIT ?
+            ORDER BY candle_time DESC
+
+            LIMIT ?
+        )
+
+        ORDER BY candle_time ASC
         """
 
         rows = self._sqlite.query(

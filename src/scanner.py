@@ -12,8 +12,13 @@ from src.scanners.volume import VolumeScanner
 from src.services.market_data import MarketData
 from src.core.market_data_store import MarketDataStore
 from src.services.watchlist import WatchlistService
-
-
+from src.models.signal import Signal
+from src.models.enums import SignalType
+from src.strategies import (
+    StrategyManager,
+    EMAAlignmentStrategy,
+    RSIStrategy,
+)
 class Scanner:
     """
     Executes all enabled scanners.
@@ -29,7 +34,13 @@ class Scanner:
         self.market_data = market_data
         self.market_store = market_store
         self.watchlist = watchlist
-
+        self._strategy_manager = StrategyManager()
+        self._strategy_manager.register(
+            EMAAlignmentStrategy()
+        )
+        self._strategy_manager.register(
+            RSIStrategy()
+        )
         self.trend = TrendScanner()
         self.breakout = BreakoutScanner()
         self.volume = VolumeScanner()
@@ -41,68 +52,48 @@ class Scanner:
         Run all scanners and return trading signals.
         """
 
-        signals = []
+        signals: dict[int, Signal] = {}
 
-        for symbol in self.market_data.get_symbols():
+        for stock in self.market_store.get_all_stocks():
 
-            candles = self.market_data.get_candles(symbol)
-
-            if len(candles) < 2:
-                continue
-
-            instrument = self.watchlist.get_instrument(symbol)
-
-            if instrument is None:
-                continue
-
-            indicators = self.market_store.get_indicator_data(
-                instrument.security_id,
+            strategy_results = self._strategy_manager.evaluate(
+                stock
             )
 
-            if indicators is None:
-                continue
+            for result in strategy_results:
 
-            #
-            # Trend Scanner
-            #
-            trend_signals = self.trend.scan(
-                symbol,
-                candles,
-                indicators,
-            )
+                signal = Signal(
+                    security_id=stock.instrument.security_id,
+                    strategy=result.strategy,
+                    signal_type=(
+                        SignalType.BUY
+                        if result.signal == "BUY"
+                        else SignalType.SELL
+                    ),
+                    signal_price=float(stock.tick.ltp),
+                    current_ltp=float(stock.tick.ltp),
+                    confidence=result.confidence,
+                    message=result.reason,
+                    timestamp=stock.tick.timestamp,
+                )
 
-            for signal in trend_signals:
-                signal.security_id = instrument.security_id
+                existing = signals.get(
+                    stock.instrument.security_id
+                )
 
-            signals.extend(trend_signals)
+                if (
+                        existing is None
+                        or signal.confidence > existing.confidence
+                ):
+                    signals[
+                        stock.instrument.security_id
+                    ] = signal
 
-            #
-            # Breakout Scanner
-            #
-            breakout_signals = self.breakout.scan(
-                symbol,
-                candles,
-            )
-
-            for signal in breakout_signals:
-                signal.security_id = instrument.security_id
-
-            signals.extend(breakout_signals)
-
-            #
-            # Volume Scanner
-            #
-            volume_signals = self.volume.scan(
-                symbol,
-                candles,
-            )
-
-            for signal in volume_signals:
-                signal.security_id = instrument.security_id
-
-            signals.extend(volume_signals)
-
-        for signal in signals:
+        for signal in signals.values():
             self.market_store.update_signal(signal)
 
-        return signals
+        return list(signals.values())
+
+    @property
+    def strategy_manager(self) -> StrategyManager:
+        return self._strategy_manager

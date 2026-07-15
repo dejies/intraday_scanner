@@ -4,6 +4,9 @@ from .candle_interval import CandleInterval
 from .candle_builder_result import CandleBuilderResult
 from .candle_builder_state import CandleBuilderState
 from .opening_range import OpeningRange
+from .gap import Gap, GapDirection
+from .tick import Tick
+from .indicator import IndicatorData
 
 __all__ = [
     "Instrument",
@@ -11,5 +14,7 @@ __all__ = [
     "CandleInterval",
     "CandleBuilderResult",
     "CandleBuilderState",
-    "OpeningRange"
+    "OpeningRange",
+    "Gap",
+    "GapDirection",
 ]

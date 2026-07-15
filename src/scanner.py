@@ -6,21 +6,28 @@ Runs all enabled scanners and collects trading signals.
 
 from __future__ import annotations
 
-from src.scanners.breakout import BreakoutScanner
-from src.scanners.trend import TrendScanner
-from src.scanners.volume import VolumeScanner
+
 from src.services.market_data import MarketData
 from src.core.market_data_store import MarketDataStore
 from src.services.watchlist import WatchlistService
 from src.models.signal import Signal
 from src.models.enums import SignalType
 from src.services.opening_range_service import OpeningRangeService
+from src.services.gap_service import GapService
+from src.strategies.confidence_engine import ConfidenceEngine
+from src.analysis.signal_analysis_engine import SignalAnalysisEngine
+from src.analysis.scoring_engine import ScoringEngine
+from src.analysis.signal_analysis_engine import (
+    SignalAnalysisEngine,
+)
 from src.strategies import (
     StrategyManager,
     EMAAlignmentStrategy,
     RSIStrategy,
     MACDStrategy,
-    ORBStrategy
+    ORBStrategy,
+    GapStrategy,
+    PullbackStrategy
 )
 class Scanner:
     """
@@ -33,12 +40,16 @@ class Scanner:
         market_store: MarketDataStore,
         watchlist: WatchlistService,
         opening_range_service: OpeningRangeService,
+        gap_service: GapService,
     ) -> None:
 
         self.market_data = market_data
         self.market_store = market_store
         self.watchlist = watchlist
+        self._gap_service = gap_service
+
         self._opening_range_service = opening_range_service
+        self._confidence_engine = ConfidenceEngine()
         self._strategy_manager = StrategyManager()
         self._strategy_manager.register(
             EMAAlignmentStrategy()
@@ -55,6 +66,19 @@ class Scanner:
             )
         )
 
+        self._strategy_manager.register(
+            GapStrategy(
+                gap_service=self._gap_service,
+            )
+        )
+
+        self._strategy_manager.register(
+            PullbackStrategy()
+        )
+
+        self._analysis_engine = SignalAnalysisEngine()
+        self._scoring_engine = ScoringEngine()
+
     # ------------------------------------------------------------------
 
     def scan(self):
@@ -66,9 +90,19 @@ class Scanner:
 
         for stock in self.market_store.get_all_stocks():
 
+            analysis_facts = self._analysis_engine.analyze(
+                stock
+            )
+
+            score_result = self._scoring_engine.score(
+                analysis_facts
+            )
+
             strategy_results = self._strategy_manager.evaluate(
                 stock
             )
+
+            evidence = []
 
             for result in strategy_results:
 
@@ -82,8 +116,19 @@ class Scanner:
                     ),
                     signal_price=float(stock.tick.ltp),
                     current_ltp=float(stock.tick.ltp),
-                    confidence=result.confidence,
+
+                    confidence=score_result.score,
+
+                    raw_score=score_result.raw_score,
+
+                    score_percentage=score_result.percentage,
+
+                    analysis_facts=score_result.facts,
+
+                    score_breakdown=score_result.breakdown,
+
                     message=result.reason,
+
                     timestamp=stock.tick.timestamp,
                 )
 

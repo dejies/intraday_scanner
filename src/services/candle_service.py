@@ -26,6 +26,7 @@ class CandleService:
             indicator_service: IndicatorService,
             market_data_store: MarketDataStore,
             opening_range_service: OpeningRangeService,
+            gap_service: GapService,
     ):
         self._builder = builder
         self._repository = repository
@@ -33,6 +34,7 @@ class CandleService:
         self._indicator_service = indicator_service
         self._market_data_store = market_data_store
         self._opening_range_service = opening_range_service
+        self._gap_service = gap_service
 
     # ---------------------------------------------------------
 
@@ -81,6 +83,9 @@ class CandleService:
                     indicator_data,
                 )
             self._opening_range_service.process_candle(
+                candle
+            )
+            self._gap_service.process_candle(
                 candle
             )
 

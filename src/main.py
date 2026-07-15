@@ -16,6 +16,7 @@ from src.services.historical_data import HistoricalDataService
 from src.services.websocket_client import WebSocketClient
 from src.services.watchlist import WatchlistService
 from src.core.market_data_store import MarketDataStore
+from src.services.gap_service import GapService
 from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
@@ -68,6 +69,9 @@ def main() -> None:
     indicator_service = IndicatorService()
     opening_range_service = OpeningRangeService()
 
+    gap_service = GapService(
+        candle_repository=candle_repository,
+    )
     candle_service = CandleService(
         builder=candle_builder,
         repository=candle_repository,
@@ -75,6 +79,7 @@ def main() -> None:
         indicator_service=indicator_service,
         market_data_store=market_store,
         opening_range_service=opening_range_service,
+        gap_service=gap_service,
     )
 
     instrument_master = InstrumentMasterService()
@@ -99,6 +104,12 @@ def main() -> None:
     )
 
     watchlist.load()
+
+    opening_range_service = OpeningRangeService()
+
+    gap_service = GapService(
+        candle_repository=candle_repository,
+    )
 
     market_store.register_instruments(
         watchlist.get_all()
@@ -147,6 +158,7 @@ def main() -> None:
         market_store=market_store,
         watchlist=watchlist,
         opening_range_service=opening_range_service,
+        gap_service=gap_service,
     )
 
     app = QApplication([])

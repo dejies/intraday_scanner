@@ -277,3 +277,40 @@ class CandleRepository:
             close=Decimal(str(row["close"])),
             volume=row["volume"],
         )
+
+    def previous_day_close(
+            self,
+            security_id: str,
+            interval: CandleInterval,
+            trading_day: date,
+    ) -> float | None:
+
+        sql = f"""
+        SELECT close
+
+        FROM {self.TABLE_NAME}
+
+        WHERE
+
+            security_id = ?
+            AND interval = ?
+            AND date(candle_time) < ?
+
+        ORDER BY candle_time DESC
+
+        LIMIT 1
+        """
+
+        rows = self._sqlite.query(
+            sql,
+            (
+                security_id,
+                interval.value,
+                trading_day.isoformat(),
+            ),
+        )
+
+        if not rows:
+            return None
+
+        return float(rows[0]["close"])

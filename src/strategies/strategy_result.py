@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
-
+from dataclasses import field
+from src.strategies.evidence import SignalEvidence
 
 @dataclass(slots=True)
 class StrategyResult:
@@ -53,3 +54,5 @@ class StrategyResult:
     # Whether the signal is valid
     #
     valid: bool = True
+
+    evidence: list[SignalEvidence] = field(default_factory=list)

@@ -7,7 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from dataclasses import field
 
+from src.analysis.analysis_fact import AnalysisFact
 from src.models.enums import SignalType
 
 
@@ -45,3 +47,27 @@ class Signal:
 
     # Additional scanner-specific information
     metadata: dict[str, str] = field(default_factory=dict)
+
+    #
+    # Raw score before normalization
+    #
+    raw_score: float = 0.0
+
+    #
+    # Final normalized percentage
+    #
+    score_percentage: float = 0.0
+
+    #
+    # Technical analysis facts
+    #
+    analysis_facts: list[AnalysisFact] = field(
+        default_factory=list
+    )
+
+    #
+    # Score contribution
+    #
+    score_breakdown: dict[str, float] = field(
+        default_factory=dict
+    )

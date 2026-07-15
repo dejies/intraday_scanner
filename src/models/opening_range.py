@@ -20,3 +20,10 @@ class OpeningRange:
     low: float
 
     locked: bool = False
+
+    #
+    # Prevent duplicate ORB signals
+    #
+    buy_triggered: bool = False
+
+    sell_triggered: bool = False

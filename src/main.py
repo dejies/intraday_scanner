@@ -31,7 +31,7 @@ from src.builders import CandleBuilder
 
 from src.services import CandleService
 from src.services.indicator_service import IndicatorService
-
+from src.services.opening_range_service import OpeningRangeService
 
 def main() -> None:
     """
@@ -66,6 +66,7 @@ def main() -> None:
     # Services
     #
     indicator_service = IndicatorService()
+    opening_range_service = OpeningRangeService()
 
     candle_service = CandleService(
         builder=candle_builder,
@@ -73,6 +74,7 @@ def main() -> None:
         indicator_repository=indicator_repository,
         indicator_service=indicator_service,
         market_data_store=market_store,
+        opening_range_service=opening_range_service,
     )
 
     instrument_master = InstrumentMasterService()
@@ -144,6 +146,7 @@ def main() -> None:
         market_data=market_data,
         market_store=market_store,
         watchlist=watchlist,
+        opening_range_service=opening_range_service,
     )
 
     app = QApplication([])

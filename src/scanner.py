@@ -14,10 +14,13 @@ from src.core.market_data_store import MarketDataStore
 from src.services.watchlist import WatchlistService
 from src.models.signal import Signal
 from src.models.enums import SignalType
+from src.services.opening_range_service import OpeningRangeService
 from src.strategies import (
     StrategyManager,
     EMAAlignmentStrategy,
     RSIStrategy,
+    MACDStrategy,
+    ORBStrategy
 )
 class Scanner:
     """
@@ -29,11 +32,13 @@ class Scanner:
         market_data: MarketData,
         market_store: MarketDataStore,
         watchlist: WatchlistService,
+        opening_range_service: OpeningRangeService,
     ) -> None:
 
         self.market_data = market_data
         self.market_store = market_store
         self.watchlist = watchlist
+        self._opening_range_service = opening_range_service
         self._strategy_manager = StrategyManager()
         self._strategy_manager.register(
             EMAAlignmentStrategy()
@@ -41,9 +46,14 @@ class Scanner:
         self._strategy_manager.register(
             RSIStrategy()
         )
-        self.trend = TrendScanner()
-        self.breakout = BreakoutScanner()
-        self.volume = VolumeScanner()
+        self._strategy_manager.register(
+            MACDStrategy()
+        )
+        self._strategy_manager.register(
+            ORBStrategy(
+                opening_range_service=self._opening_range_service,
+            )
+        )
 
     # ------------------------------------------------------------------
 

@@ -3,6 +3,7 @@ from .candle import Candle
 from .candle_interval import CandleInterval
 from .candle_builder_result import CandleBuilderResult
 from .candle_builder_state import CandleBuilderState
+from .opening_range import OpeningRange
 
 __all__ = [
     "Instrument",
@@ -10,4 +11,5 @@ __all__ = [
     "CandleInterval",
     "CandleBuilderResult",
     "CandleBuilderState",
+    "OpeningRange"
 ]

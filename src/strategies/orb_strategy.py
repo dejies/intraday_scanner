@@ -1,27 +1,26 @@
 """
-EMA Alignment trading strategy.
-
-BUY
-----
-EMA9 > EMA20 > EMA50 > EMA200
-
-SELL
------
-EMA9 < EMA20 < EMA50 < EMA200
+Opening Range Breakout strategy.
 """
 
 from __future__ import annotations
 
 from src.core.market_data_store import StockState
+from src.services.opening_range_service import OpeningRangeService
 from src.strategies.base_strategy import BaseStrategy
-from src.strategies.strategy_result import StrategyResult
 from src.strategies.strategy_filters import StrategyFilters
+from src.strategies.strategy_result import StrategyResult
 
-class EMAAlignmentStrategy(BaseStrategy):
 
-    def __init__(self):
+class ORBStrategy(BaseStrategy):
 
-        super().__init__("EMA Alignment")
+    def __init__(
+        self,
+        opening_range_service: OpeningRangeService,
+    ):
+
+        super().__init__("Opening Range Breakout")
+
+        self._opening_range_service = opening_range_service
 
     # ---------------------------------------------------------
 
@@ -36,23 +35,21 @@ class EMAAlignmentStrategy(BaseStrategy):
         if indicator is None or tick is None:
             return None
 
-        if (
-            indicator.ema9 is None
-            or indicator.ema20 is None
-            or indicator.ema50 is None
-            or indicator.ema200 is None
-        ):
+        orb = self._opening_range_service.get(
+            stock.instrument.security_id
+        )
+
+        if orb is None:
+            return None
+
+        if not orb.locked:
             return None
 
         #
         # BUY
         #
         if (
-            indicator.ema9
-            > indicator.ema20
-            > indicator.ema50
-            > indicator.ema200
-            and tick.ltp > indicator.ema9
+            tick.ltp > orb.high
             and StrategyFilters.adx_bullish(stock)
             and StrategyFilters.above_vwap(stock)
         ):
@@ -60,8 +57,8 @@ class EMAAlignmentStrategy(BaseStrategy):
             return StrategyResult(
                 strategy=self.name,
                 signal="BUY",
-                confidence=82.0,
-                reason="Bullish EMA alignment (ADX confirmed)",
+                confidence=85.0,
+                reason="Opening Range Breakout (Bullish)",
                 price=float(tick.ltp),
             )
 
@@ -69,11 +66,7 @@ class EMAAlignmentStrategy(BaseStrategy):
         # SELL
         #
         if (
-            indicator.ema9
-            < indicator.ema20
-            < indicator.ema50
-            < indicator.ema200
-            and tick.ltp < indicator.ema9
+            tick.ltp < orb.low
             and StrategyFilters.adx_bearish(stock)
             and StrategyFilters.below_vwap(stock)
         ):
@@ -81,8 +74,8 @@ class EMAAlignmentStrategy(BaseStrategy):
             return StrategyResult(
                 strategy=self.name,
                 signal="SELL",
-                confidence=82.0,
-                reason="Bearish EMA alignment (ADX confirmed)",
+                confidence=85.0,
+                reason="Opening Range Breakout (Bearish)",
                 price=float(tick.ltp),
             )
 

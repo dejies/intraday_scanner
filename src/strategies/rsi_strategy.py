@@ -7,7 +7,7 @@ from __future__ import annotations
 from src.core.market_data_store import StockState
 from src.strategies.base_strategy import BaseStrategy
 from src.strategies.strategy_result import StrategyResult
-
+from src.strategies.strategy_filters import StrategyFilters
 
 class RSIStrategy(BaseStrategy):
 
@@ -37,26 +37,34 @@ class RSIStrategy(BaseStrategy):
         #
         # BUY
         #
-        if indicator.rsi14 >= self.BUY_RSI:
+        if (
+                indicator.rsi14 >= self.BUY_RSI
+                and StrategyFilters.adx_bullish(stock)
+                and StrategyFilters.above_vwap(stock)
+        ):
 
             return StrategyResult(
                 strategy=self.name,
                 signal="BUY",
-                confidence=65.0,
-                reason=f"RSI {indicator.rsi14:.2f} above {self.BUY_RSI}",
+                confidence=72.0,
+                reason=f"RSI {indicator.rsi14:.2f} above {self.BUY_RSI} (ADX + VWAP confirmed)",
                 price=float(tick.ltp),
             )
 
         #
         # SELL
         #
-        if indicator.rsi14 <= self.SELL_RSI:
+        if (
+                indicator.rsi14 <= self.SELL_RSI
+                and StrategyFilters.adx_bearish(stock)
+                and StrategyFilters.below_vwap(stock)
+        ):
 
             return StrategyResult(
                 strategy=self.name,
                 signal="SELL",
-                confidence=65.0,
-                reason=f"RSI {indicator.rsi14:.2f} below {self.SELL_RSI}",
+                confidence=72.0,
+                reason=f"RSI {indicator.rsi14:.2f} below {self.SELL_RSI} (ADX + VWAP confirmed)",
                 price=float(tick.ltp),
             )
 

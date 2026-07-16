@@ -14,8 +14,6 @@ from src.models.signal import Signal
 from src.models.enums import SignalType
 from src.services.opening_range_service import OpeningRangeService
 from src.services.gap_service import GapService
-from src.strategies.confidence_engine import ConfidenceEngine
-from src.analysis.signal_analysis_engine import SignalAnalysisEngine
 from src.analysis.scoring_engine import ScoringEngine
 from src.analysis.signal_analysis_engine import (
     SignalAnalysisEngine,
@@ -49,7 +47,6 @@ class Scanner:
         self._gap_service = gap_service
 
         self._opening_range_service = opening_range_service
-        self._confidence_engine = ConfidenceEngine()
         self._strategy_manager = StrategyManager()
         self._strategy_manager.register(
             EMAAlignmentStrategy()

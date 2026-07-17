@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QTimer
 from src.core.market_data_store import MarketDataStore
 from src.dashboard.dashboard_window import DashboardWindow
 from datetime import datetime
+from src.dashboard.signal_formatter import SignalFormatter
 
 class DashboardController(QObject):
     """
@@ -133,9 +134,13 @@ class DashboardController(QObject):
         for stock in list(buy_stocks) + list(sell_stocks):
             tick = stock.tick
             indicator = stock.indicator
-
             signal = stock.active_signal
 
+            signal_details = (
+                SignalFormatter.format_text(signal)
+                if signal
+                else ""
+            )
             details[stock.instrument.symbol] = {
 
                 "symbol": stock.instrument.symbol,
@@ -244,6 +249,7 @@ class DashboardController(QObject):
                     if signal
                     else "-"
                 ),
+                "signal_details": signal_details,
             }
 
         return details

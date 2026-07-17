@@ -15,6 +15,10 @@ from src.models.enums import SignalType
 from src.services.opening_range_service import OpeningRangeService
 from src.services.gap_service import GapService
 from src.analysis.scoring_engine import ScoringEngine
+from src.ranking.ranking_engine import RankingEngine
+from src.alerts.alert_engine import AlertEngine
+from src.alerts.alert_formatter import AlertFormatter
+from src.alerts.alert_repository import AlertRepository
 from src.analysis.signal_analysis_engine import (
     SignalAnalysisEngine,
 )
@@ -46,8 +50,15 @@ class Scanner:
         self.watchlist = watchlist
         self._gap_service = gap_service
 
+        self._alert_repository = AlertRepository()
+
+        self._alert_engine = AlertEngine(
+            self._alert_repository
+        )
+
         self._opening_range_service = opening_range_service
         self._strategy_manager = StrategyManager()
+        self._ranking_engine = RankingEngine()
         self._strategy_manager.register(
             EMAAlignmentStrategy()
         )
@@ -141,10 +152,40 @@ class Scanner:
                         stock.instrument.security_id
                     ] = signal
 
-        for signal in signals.values():
-            self.market_store.update_signal(signal)
+        all_signals = list(
+            signals.values()
+        )
 
-        return list(signals.values())
+        buy_ranked = self._ranking_engine.rank_buy(
+            all_signals
+        )
+
+        sell_ranked = self._ranking_engine.rank_sell(
+            all_signals
+        )
+
+        # for ranked_signal in buy_ranked + sell_ranked:
+        #
+        #     alert = self._alert_engine.process(
+        #         ranked_signal.signal
+        #     )
+        #
+        #     if alert is not None:
+        #         print(
+        #             AlertFormatter.format(alert)
+        #         )
+
+        for ranked in buy_ranked:
+            self.market_store.update_signal(
+                ranked.signal
+            )
+
+        for ranked in sell_ranked:
+            self.market_store.update_signal(
+                ranked.signal
+            )
+
+        return all_signals
 
     @property
     def strategy_manager(self) -> StrategyManager:

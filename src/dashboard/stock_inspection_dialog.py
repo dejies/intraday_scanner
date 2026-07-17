@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QVBoxLayout,
+    QPlainTextEdit
 )
 
 
@@ -39,7 +40,8 @@ class StockInspectionDialog(QDialog):
         )
 
         self.setModal(True)
-        self.setFixedSize(500, 780)
+        self.resize(700, 900)
+        self.setMinimumSize(650, 850)
 
         self._build_ui()
         self._load_data()
@@ -193,11 +195,43 @@ class StockInspectionDialog(QDialog):
             self.confidence_value,
         )
 
-        signal_group.setLayout(self.signal_layout)
+        signal_group.setLayout(
+            self.signal_layout
+        )
 
-        root.addWidget(signal_group)
+        root.addWidget(
+            signal_group
+        )
 
-        root.addStretch()
+        #
+        # Signal Analysis
+        #
+        analysis_group = QGroupBox(
+            "Signal Analysis"
+        )
+
+        analysis_layout = QVBoxLayout()
+
+        self.signal_analysis = QPlainTextEdit()
+
+        self.signal_analysis.setReadOnly(True)
+
+        analysis_layout.addWidget(
+            self.signal_analysis
+        )
+
+        analysis_group.setLayout(
+            analysis_layout
+        )
+
+        #
+        # Allow the analysis pane to consume
+        # any remaining vertical space.
+        #
+        root.addWidget(
+            analysis_group,
+            1,
+        )
 
         #
         # Close Button
@@ -207,11 +241,18 @@ class StockInspectionDialog(QDialog):
         button_layout.addStretch()
 
         close_button = QPushButton("Close")
-        close_button.clicked.connect(self.accept)
 
-        button_layout.addWidget(close_button)
+        close_button.clicked.connect(
+            self.accept
+        )
 
-        root.addLayout(button_layout)
+        button_layout.addWidget(
+            close_button
+        )
+
+        root.addLayout(
+            button_layout
+        )
 
     # ------------------------------------------------------------------
 
@@ -308,6 +349,22 @@ class StockInspectionDialog(QDialog):
             else "-"
         )
 
+        signal_details = self._stock.get(
+            "signal_details",
+            "",
+        )
+
+        if signal_details:
+
+            self.signal_analysis.setPlainText(
+                signal_details
+            )
+
+        else:
+
+            self.signal_analysis.setPlainText(
+                "No active signal."
+            )
     # ------------------------------------------------------------------
 
     def update_stock(

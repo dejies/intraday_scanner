@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-
+from src.models.enums import MarketMode
 from dotenv import load_dotenv
 
 # -----------------------------------------------------------------------------
@@ -46,6 +46,15 @@ class Settings:
     dhan_base_url: str
     dhan_market_feed_url: str
     dhan_instrument_master_url: str
+
+    market_mode: str
+
+    dhan_sandbox_client_id: str
+    dhan_sandbox_access_token: str
+
+    dhan_sandbox_base_url: str
+    dhan_sandbox_market_feed_url: str
+
 
     api_timeout: int
     retry_count: int
@@ -147,6 +156,14 @@ def load_settings() -> Settings:
     Load application settings from .env.
     """
 
+    market_mode = MarketMode(
+        os.getenv(
+            "MARKET_MODE",
+            "LIVE",
+        ).upper()
+    ),
+
+
     watchlist_file = Path(
         os.getenv(
             "WATCHLIST_FILE",
@@ -190,6 +207,33 @@ def load_settings() -> Settings:
         dhan_instrument_master_url=os.getenv(
             "DHAN_INSTRUMENT_MASTER_URL",
             "https://images.dhan.co/api-data/api-scrip-master.csv",
+        ).strip(),
+
+        market_mode=MarketMode(
+            os.getenv(
+                "MARKET_MODE",
+                "LIVE",
+            ).strip().upper()
+        ),
+
+        dhan_sandbox_client_id=os.getenv(
+            "DHAN_SANDBOX_CLIENT_ID",
+            "",
+        ).strip(),
+
+        dhan_sandbox_access_token=os.getenv(
+            "DHAN_SANDBOX_ACCESS_TOKEN",
+            "",
+        ).strip(),
+
+        dhan_sandbox_base_url=os.getenv(
+            "DHAN_SANDBOX_BASE_URL",
+            "",
+        ).strip(),
+
+        dhan_sandbox_market_feed_url=os.getenv(
+            "DHAN_SANDBOX_MARKET_FEED_URL",
+            "",
         ).strip(),
 
         api_timeout=max(
@@ -438,3 +482,8 @@ def load_settings() -> Settings:
 
 
 settings = load_settings()
+print("=" * 60)
+print("Client ID :", settings.dhan_client_id)
+print("Token     :", settings.dhan_access_token[:10] + "...")
+print("Mode      :", settings.market_mode)
+print("=" * 60)

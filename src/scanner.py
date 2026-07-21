@@ -84,6 +84,13 @@ class Scanner:
             PullbackStrategy()
         )
 
+        for stock in self.market_store.get_all_stocks():
+            print(
+                stock.instrument.symbol,
+                stock.tick is not None,
+                stock.current_candle is not None,
+                stock.indicator is not None,
+            )
         self._analysis_engine = SignalAnalysisEngine()
         self._scoring_engine = ScoringEngine()
 

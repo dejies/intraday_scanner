@@ -8,19 +8,19 @@ import threading
 import time
 from PySide6.QtWidgets import QApplication
 
+from src.providers.dhan.provider_factory import ProviderFactory
 from src.dashboard.dashboard_window import DashboardWindow
 from src.dashboard.dashboard_controller import DashboardController
 from src.scanner import Scanner
 from src.services.market_data import MarketData
 from src.services.historical_data import HistoricalDataService
 from src.services.websocket_client import WebSocketClient
-from src.services.watchlist import WatchlistService
 from src.core.market_data_store import MarketDataStore
 from src.services.gap_service import GapService
 from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
-
+from src.watchlist import WatchlistService
 from src.database import SQLiteManager
 
 from src.repositories import (
@@ -33,6 +33,8 @@ from src.builders import CandleBuilder
 from src.services import CandleService
 from src.services.indicator_service import IndicatorService
 from src.services.opening_range_service import OpeningRangeService
+from src.watchlist import WatchlistMonitor
+
 
 def main() -> None:
     """
@@ -100,16 +102,11 @@ def main() -> None:
     print()
 
     watchlist = WatchlistService(
-        instrument_master=instrument_master,
+        csv_path="data/watchlist.csv",  # <-- update to your actual CSV path
+        instrument_master_service=instrument_master,
     )
 
     watchlist.load()
-
-    opening_range_service = OpeningRangeService()
-
-    gap_service = GapService(
-        candle_repository=candle_repository,
-    )
 
     market_store.register_instruments(
         watchlist.get_all()
@@ -141,6 +138,17 @@ def main() -> None:
         watchlist=watchlist,
         candle_service=candle_service,
     )
+    print("Creating provider...")
+
+    provider = ProviderFactory.create(
+        watchlist=watchlist,
+        on_connect=websocket.on_connect,
+        on_message=websocket.on_message,
+        on_close=websocket.on_close,
+        on_error=websocket.on_error,
+    )
+
+    websocket.set_provider(provider)
 
     websocket_thread = threading.Thread(
         target=websocket.connect,
@@ -161,6 +169,18 @@ def main() -> None:
         gap_service=gap_service,
     )
 
+
+    watchlist_monitor = WatchlistMonitor(
+        watchlist_service=watchlist,
+        websocket_client=websocket,
+        instrument_master_service=instrument_master,
+        market_data_store=market_store,
+        candle_builder=candle_builder,
+        indicator_service=indicator_service,
+        scanner=scanner,
+    )
+
+    watchlist_monitor.start()
     app = QApplication([])
 
     window = DashboardWindow()
@@ -203,6 +223,8 @@ def main() -> None:
 
         try:
             websocket.on_close(None)
+            watchlist_monitor.stop()
+            watchlist_monitor.join(timeout=2)
         except Exception:
             pass
 

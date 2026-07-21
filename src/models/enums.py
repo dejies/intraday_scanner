@@ -34,3 +34,13 @@ class ScannerState(str, Enum):
     IDLE = "IDLE"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
+
+
+class MarketMode(str, Enum):
+    """
+    Market feed mode.
+    """
+
+    LIVE = "LIVE"
+
+    SANDBOX = "SANDBOX"

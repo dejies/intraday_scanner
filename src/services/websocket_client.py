@@ -4,6 +4,7 @@ Dhan Market Feed WebSocket Client
 
 from dhanhq import DhanContext, MarketFeed
 
+from src.providers.dhan.market_feed_provider import MarketFeedProvider
 from src.services.candle_service import CandleService
 from src.services.base_service import BaseService
 from src.services.market_data import MarketData
@@ -49,15 +50,8 @@ class WebSocketClient(BaseService):
         self.market_store = market_store
 
         self.candle_service = candle_service
-        #
-        # Dhan Context
-        #
-        self.context = DhanContext(
-            self.settings.dhan_client_id,
-            self.settings.dhan_access_token,
-        )
 
-        self.feed = None
+        self.provider: MarketFeedProvider | None = None
 
         self.logger.info(
             "WebSocketClient initialized."
@@ -142,15 +136,13 @@ class WebSocketClient(BaseService):
             #
             # Convert Dhan message to our Tick model.
             #
-            tick = self.tick_processor.process(
-                message
-            )
 
             self._update_market_state()
 
             tick = self.tick_processor.process(message)
 
             if tick is None:
+                print(f"Tick received: {tick.security_id}")
                 return
 
             self._update_market_state()
@@ -211,36 +203,23 @@ class WebSocketClient(BaseService):
 
     def connect(self) -> None:
         """
-        Connect to Dhan Market Feed.
+        Connect to the configured Market Feed provider.
         """
 
-        self.logger.info("Preparing Market Feed...")
-
-        instruments = self._get_instruments()
+        if self.provider is None:
+            raise RuntimeError(
+                "MarketFeedProvider has not been configured."
+            )
 
         self.logger.info(
-            "Subscribing to %d instruments.",
-            len(instruments),
+            "Preparing Market Feed..."
         )
 
-        #
-        # Continue from historical candles.
-        #
-        #self._initialize_working_candles()
-
-        self.feed = MarketFeed(
-            dhan_context=self.context,
-            instruments=instruments,
-            version="v2",
-            on_connect=self.on_connect,
-            on_message=self.on_message,
-            on_close=self.on_close,
-            on_error=self.on_error,
-        )
+        self.provider.connect()
 
         self.mark_initialized()
 
-        self.feed.start()
+        self.provider.start()
 
         self.logger.info(
             "Market Feed thread started."
@@ -266,3 +245,22 @@ class WebSocketClient(BaseService):
                 state,
             )
         )
+
+    def set_provider(
+            self,
+            provider: MarketFeedProvider,
+    ) -> None:
+
+        self.provider = provider
+
+    def update_watchlist(
+            self,
+            added: list[tuple],
+            removed: list[tuple],
+    ):
+
+        if added:
+            self.provider.subscribe_symbols(added)
+
+        if removed:
+            self.provider.unsubscribe_symbols(removed)

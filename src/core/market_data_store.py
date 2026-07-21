@@ -450,7 +450,7 @@ class MarketDataStore:
             indicator_data: IndicatorData,
     ):
         with self._lock:
-            self._indicators[security_id] = indicator_data
+            self._indicators[str(security_id)] = indicator_data
 
             stock = self._get_optional_stock(
                 security_id
@@ -473,3 +473,16 @@ class MarketDataStore:
     ):
         with self._lock:
             self._indicators.pop(security_id, None)
+
+    def remove_security(
+            self,
+            security_id: int,
+    ):
+        """
+        Remove a security from the runtime store.
+        """
+
+        with self._lock:
+            self._stocks.pop(security_id, None)
+            self._indicators.pop(str(security_id), None)
+            self._market_status.watching_count = len(self._stocks)

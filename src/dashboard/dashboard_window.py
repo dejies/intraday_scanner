@@ -59,6 +59,9 @@ class DashboardWindow(QMainWindow):
         self._sell_sort_column = self.CONFIDENCE_COLUMN
         self._sell_sort_order = Qt.DescendingOrder
 
+        self._buy_rows: dict[str, int] = {}
+        self._sell_rows: dict[str, int] = {}
+
         self._build_ui()
 
         #

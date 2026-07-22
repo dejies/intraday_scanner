@@ -90,7 +90,7 @@ class HistoricalDataService(BaseService):
 
             try:
 
-                self._load_symbol(
+                self.load_symbol(
                     instrument,
                 )
 
@@ -111,6 +111,37 @@ class HistoricalDataService(BaseService):
         self.logger.info(
             "Historical loading completed."
         )
+
+    # ------------------------------------------------------------------
+
+    def load_symbol(
+            self,
+            instrument: Instrument,
+    ) -> None:
+        """
+        Load historical data for a single instrument.
+
+        This is used when a new symbol is dynamically added to the
+        watchlist while the application is already running.
+        """
+
+        try:
+
+            self.logger.info(
+                "Loading history for %s.",
+                instrument.symbol,
+            )
+
+            self._load_symbol(
+                instrument,
+            )
+
+        except Exception:
+
+            self.logger.exception(
+                "Unable to load history for %s",
+                instrument.symbol,
+            )
 
     # ------------------------------------------------------------------
 

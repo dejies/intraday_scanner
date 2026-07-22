@@ -169,13 +169,13 @@ def main() -> None:
         gap_service=gap_service,
     )
 
-
     watchlist_monitor = WatchlistMonitor(
         watchlist_service=watchlist,
         websocket_client=websocket,
         instrument_master_service=instrument_master,
         market_data_store=market_store,
         candle_builder=candle_builder,
+        historical_data_service=historical,
         indicator_service=indicator_service,
         scanner=scanner,
     )

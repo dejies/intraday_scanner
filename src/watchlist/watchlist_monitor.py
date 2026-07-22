@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-
+from src.services.historical_data import HistoricalDataService
 
 class WatchlistMonitor(threading.Thread):
 
@@ -13,6 +13,7 @@ class WatchlistMonitor(threading.Thread):
         instrument_master_service,
         market_data_store,
         candle_builder,
+        historical_data_service: HistoricalDataService,
         indicator_service=None,
         scanner=None,
         interval: int = 2,
@@ -24,6 +25,7 @@ class WatchlistMonitor(threading.Thread):
         self.instrument_master_service = instrument_master_service
         self.market_data_store = market_data_store
         self.candle_builder = candle_builder
+        self._historical_data_service = historical_data_service
         self.indicator_service = indicator_service
         self.scanner = scanner
 
@@ -72,7 +74,21 @@ class WatchlistMonitor(threading.Thread):
                         self.market_data_store.register_instrument(
                             instrument
                         )
-                        print(f"Registered: {instrument.symbol} ({instrument.security_id})")
+
+                        print(
+                            f"Registered: {instrument.symbol} ({instrument.security_id})"
+                        )
+
+                        #
+                        # Load historical candles and indicators.
+                        #
+                        self._historical_data_service.load_symbol(
+                            instrument
+                        )
+
+                        print(
+                            f"Historical data loaded: {instrument.symbol}"
+                        )
 
                     added = (
                         self.watchlist_service.get_subscription_tuples(
@@ -134,22 +150,26 @@ class WatchlistMonitor(threading.Thread):
                         # Optional cleanup
                         #
                         if (
-                            self.indicator_service is not None
-                            and hasattr(
-                                self.indicator_service,
-                                "remove_symbol",
-                            )
+                                self.indicator_service is not None
+                                and hasattr(
+                            self.indicator_service,
+                            "remove_symbol",
+                        )
                         ):
-                            self.indicator_service.remove_symbol(symbol)
+                            self.indicator_service.remove_symbol(
+                                symbol
+                            )
 
                         if (
-                            self.scanner is not None
-                            and hasattr(
-                                self.scanner,
-                                "remove_symbol",
-                            )
+                                self.scanner is not None
+                                and hasattr(
+                            self.scanner,
+                            "remove_symbol",
+                        )
                         ):
-                            self.scanner.remove_symbol(symbol)
+                            self.scanner.remove_symbol(
+                                symbol
+                            )
 
             except Exception as ex:
 

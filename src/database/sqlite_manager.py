@@ -75,7 +75,7 @@ class SQLiteManager:
             if parameters:
                 cursor.execute(sql, parameters)
             else:
-                cursor.execute(sql)
+                    cursor.execute(sql)
 
             self._connection.commit()
 

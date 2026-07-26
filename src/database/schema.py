@@ -29,6 +29,29 @@ TABLES = [
         )
     );
     """,
+"""
+CREATE TABLE IF NOT EXISTS universe
+(
+    symbol              TEXT PRIMARY KEY,
+
+    company_name        TEXT NOT NULL,
+
+    security_id         TEXT,
+
+    exchange_segment    TEXT,
+
+    index_name          TEXT NOT NULL,
+
+    updated_at          INTEGER NOT NULL
+)
+""",
+"""
+CREATE TABLE IF NOT EXISTS universe_metadata
+(
+    key     TEXT PRIMARY KEY,
+    value   TEXT NOT NULL
+)
+""",
     """
     CREATE TABLE IF NOT EXISTS indicators
     (

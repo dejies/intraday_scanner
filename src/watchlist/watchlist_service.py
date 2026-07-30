@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 from dhanhq import MarketFeed
-import pandas as pd
 
 from src.watchlist.watchlist_snapshot import WatchlistSnapshot
 
@@ -16,14 +14,14 @@ class WatchlistService:
 
     def __init__(
             self,
-            csv_path: str,
+            universe_provider,
             instrument_master_service,
     ):
-        self.csv_path = Path(csv_path)
+        self.universe_provider = universe_provider
         self.instrument_master_service = instrument_master_service
+
         self._instrument_by_security_id = {}
         self._symbols = set()
-        self._last_modified = 0.0
 
     def get_subscription_tuples(
             self,
@@ -95,33 +93,32 @@ class WatchlistService:
 
     def load(self) -> WatchlistSnapshot:
 
-        current = self._read_symbols()
+        current = set(
+            self.universe_provider.get_symbols()
+        )
 
-        snapshot = WatchlistSnapshot(
+        self._symbols = current
+
+        self._instrument_by_security_id.clear()
+
+        for instrument in self.get_all():
+            self._instrument_by_security_id[
+                instrument.security_id
+            ] = instrument
+
+        return WatchlistSnapshot(
             symbols=current,
             added=current,
             removed=set(),
         )
 
-        self._symbols = current
+    def refresh(
+            self,
+    ) -> WatchlistSnapshot:
 
-        self._instrument_by_security_id = {}
-
-        for instrument in self.get_all():
-            self._instrument_by_security_id[instrument.security_id] = instrument
-
-        self._last_modified = self.csv_path.stat().st_mtime
-
-        return snapshot
-
-    def refresh(self) -> Optional[WatchlistSnapshot]:
-
-        modified = self.csv_path.stat().st_mtime
-
-        if modified == self._last_modified:
-            return None
-
-        current = self._read_symbols()
+        current = set(
+            self.universe_provider.get_symbols()
+        )
 
         added = current - self._symbols
 
@@ -129,12 +126,12 @@ class WatchlistService:
 
         self._symbols = current
 
-        self._instrument_by_security_id = {}
+        self._instrument_by_security_id.clear()
 
         for instrument in self.get_all():
-            self._instrument_by_security_id[instrument.security_id] = instrument
-
-        self._last_modified = modified
+            self._instrument_by_security_id[
+                instrument.security_id
+            ] = instrument
 
         return WatchlistSnapshot(
             symbols=current,
@@ -142,26 +139,7 @@ class WatchlistService:
             removed=removed,
         )
 
-    def _read_symbols(self) -> set[str]:
 
-        df = pd.read_csv(self.csv_path)
-
-        return {
-            str(symbol).strip().upper()
-            for symbol in df["symbol"]
-            if str(symbol).strip()
-        }
-
-    _EXCHANGE_MAP = {
-        "IDX": 0,
-        "NSE": 1,
-        "NSE_FNO": 2,
-        "NSE_CURR": 3,
-        "BSE": 4,
-        "MCX": 5,
-        "BSE_CURR": 7,
-        "BSE_FNO": 8,
-    }
 
     def _map_exchange(self, exchange: str) -> int:
 

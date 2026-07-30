@@ -8,6 +8,7 @@ import threading
 import time
 from PySide6.QtWidgets import QApplication
 
+from src.services import InstrumentBootstrapService
 from src.providers.dhan.provider_factory import ProviderFactory
 from src.dashboard.dashboard_window import DashboardWindow
 from src.dashboard.dashboard_controller import DashboardController
@@ -21,6 +22,7 @@ from src.services.instrument_master_service import (
     InstrumentMasterService,
 )
 from src.watchlist import WatchlistService
+from src.services.universe.universe_module import UniverseModule
 from src.database import SQLiteManager
 
 from src.repositories import (
@@ -33,7 +35,7 @@ from src.builders import CandleBuilder
 from src.services import CandleService
 from src.services.indicator_service import IndicatorService
 from src.services.opening_range_service import OpeningRangeService
-from src.watchlist import WatchlistMonitor
+from src.watchlist import UniverseMonitor
 
 
 def main() -> None:
@@ -87,6 +89,31 @@ def main() -> None:
     instrument_master = InstrumentMasterService()
     instrument_master.load()
 
+    #
+    # Market Universe
+    #
+    universe = UniverseModule(
+        sqlite=sqlite,
+        instrument_master_service=instrument_master,
+    )
+
+    print()
+    print("=" * 70)
+    print("Synchronizing Market Universe")
+    print("=" * 70)
+
+    universe.sync()
+    universe.refresh()
+
+    print(
+        "Universe loaded:",
+        universe.count(),
+        "stocks",
+    )
+
+    print("=" * 70)
+    print()
+
     print()
     print("=" * 70)
     print("Instrument Master")
@@ -102,7 +129,7 @@ def main() -> None:
     print()
 
     watchlist = WatchlistService(
-        csv_path="data/watchlist.csv",  # <-- update to your actual CSV path
+        universe_provider=universe,
         instrument_master_service=instrument_master,
     )
 
@@ -169,18 +196,22 @@ def main() -> None:
         gap_service=gap_service,
     )
 
-    watchlist_monitor = WatchlistMonitor(
-        watchlist_service=watchlist,
-        websocket_client=websocket,
-        instrument_master_service=instrument_master,
+    bootstrap_service = InstrumentBootstrapService(
         market_data_store=market_store,
         candle_builder=candle_builder,
         historical_data_service=historical,
         indicator_service=indicator_service,
-        scanner=scanner,
+        scanner=scanner,  # We'll adjust this in the next step
     )
 
-    watchlist_monitor.start()
+    universe_monitor = UniverseMonitor(
+        watchlist_service=watchlist,
+        websocket_client=websocket,
+        instrument_master_service=instrument_master,
+        bootstrap_service=bootstrap_service,
+    )
+
+    universe_monitor.start()
     app = QApplication([])
 
     window = DashboardWindow()
@@ -223,8 +254,8 @@ def main() -> None:
 
         try:
             websocket.on_close(None)
-            watchlist_monitor.stop()
-            watchlist_monitor.join(timeout=2)
+            universe_monitor.stop()
+            universe_monitor.join(timeout=2)
         except Exception:
             pass
 

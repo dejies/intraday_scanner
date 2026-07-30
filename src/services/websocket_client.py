@@ -142,10 +142,10 @@ class WebSocketClient(BaseService):
             tick = self.tick_processor.process(message)
 
             if tick is None:
-                print(f"Tick received: {tick.security_id}")
+                self.logger.debug(
+                    "Ignoring unsupported market message."
+                )
                 return
-
-            self._update_market_state()
 
             self.market_store.update_tick(tick)
 

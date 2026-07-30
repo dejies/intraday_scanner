@@ -42,13 +42,9 @@ class TickProcessor:
             message["security_id"]
         )
 
-        instrument = (
-            self._watchlist.get_instrument_by_security_id(
+        if not self._watchlist.contains_security_id(
                 security_id
-            )
-        )
-
-        if instrument is None:
+        ):
             return None
 
         trade_time = datetime.strptime(

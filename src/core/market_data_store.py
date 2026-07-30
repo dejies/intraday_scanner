@@ -486,3 +486,24 @@ class MarketDataStore:
             self._stocks.pop(security_id, None)
             self._indicators.pop(str(security_id), None)
             self._market_status.watching_count = len(self._stocks)
+
+    def is_ready_for_scanning(
+            self,
+            security_id: int,
+    ) -> bool:
+        """
+        Returns True when a stock has enough runtime data
+        for the scanner to evaluate it.
+        """
+        with self._lock:
+            stock = self._get_optional_stock(security_id)
+
+            if stock is None:
+                return False
+
+            return (
+                    stock.enabled
+                    and stock.tick is not None
+                    and stock.current_candle is not None
+                    and stock.indicator is not None
+            )

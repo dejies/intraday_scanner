@@ -98,6 +98,19 @@ class Scanner:
 
         for stock in self.market_store.get_all_stocks():
 
+            # Skip disabled stocks
+            if not stock.enabled:
+                self.market_store.clear_signal(
+                    stock.instrument.security_id
+                )
+                continue
+
+            # Skip stocks that are not ready for scanning
+            if not self.market_store.is_ready_for_scanning(
+                    stock.instrument.security_id
+            ):
+                continue
+
             analysis_facts = self._analysis_engine.analyze(
                 stock
             )
@@ -110,7 +123,8 @@ class Scanner:
                 stock
             )
 
-            evidence = []
+            if not strategy_results:
+                continue
 
             for result in strategy_results:
 
@@ -124,19 +138,12 @@ class Scanner:
                     ),
                     signal_price=float(stock.tick.ltp),
                     current_ltp=float(stock.tick.ltp),
-
                     confidence=score_result.score,
-
                     raw_score=score_result.raw_score,
-
                     score_percentage=score_result.percentage,
-
                     analysis_facts=score_result.facts,
-
                     score_breakdown=score_result.breakdown,
-
                     message=result.reason,
-
                     timestamp=stock.tick.timestamp,
                 )
 
@@ -164,8 +171,9 @@ class Scanner:
             all_signals
         )
 
-        # for ranked_signal in buy_ranked + sell_ranked:
+        # Uncomment when alerting is enabled
         #
+        # for ranked_signal in buy_ranked + sell_ranked:
         #     alert = self._alert_engine.process(
         #         ranked_signal.signal
         #     )
@@ -174,6 +182,12 @@ class Scanner:
         #         print(
         #             AlertFormatter.format(alert)
         #         )
+
+        # Clear previous signals before updating new ones
+        for stock in self.market_store.get_all_stocks():
+            self.market_store.clear_signal(
+                stock.instrument.security_id
+            )
 
         for ranked in buy_ranked:
             self.market_store.update_signal(

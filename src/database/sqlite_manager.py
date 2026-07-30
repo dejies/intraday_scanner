@@ -10,7 +10,7 @@ Responsibilities
 - Transactions
 - Thread-safe access
 
-This class knows NOTHING about candles.
+This class knows NOTHING about repositories.
 """
 
 from __future__ import annotations
@@ -28,16 +28,24 @@ class SQLiteManager:
 
     def __init__(self, database_path: str):
         self._database_path = Path(database_path)
-        self._database_path.parent.mkdir(parents=True, exist_ok=True)
+        self._database_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         self._lock = threading.RLock()
 
         self._connection = sqlite3.connect(
             self._database_path,
-            check_same_thread=False
+            check_same_thread=False,
         )
 
         self._connection.row_factory = sqlite3.Row
+
+        #
+        # Tracks whether a manual transaction is active.
+        #
+        self._in_transaction = False
 
         self._enable_pragmas()
 
@@ -49,6 +57,7 @@ class SQLiteManager:
         """
 
         with self._lock:
+
             cursor = self._connection.cursor()
 
             cursor.execute("PRAGMA journal_mode=WAL")
@@ -70,14 +79,20 @@ class SQLiteManager:
         """
 
         with self._lock:
+
             cursor = self._connection.cursor()
 
             if parameters:
                 cursor.execute(sql, parameters)
             else:
-                    cursor.execute(sql)
+                cursor.execute(sql)
 
-            self._connection.commit()
+            #
+            # Auto commit only if not inside
+            # an explicit transaction.
+            #
+            if not self._in_transaction:
+                self._connection.commit()
 
             return cursor
 
@@ -93,11 +108,16 @@ class SQLiteManager:
         """
 
         with self._lock:
+
             cursor = self._connection.cursor()
 
-            cursor.executemany(sql, parameters)
+            cursor.executemany(
+                sql,
+                parameters,
+            )
 
-            self._connection.commit()
+            if not self._in_transaction:
+                self._connection.commit()
 
             return cursor
 
@@ -113,6 +133,7 @@ class SQLiteManager:
         """
 
         with self._lock:
+
             cursor = self._connection.cursor()
 
             if parameters:
@@ -125,23 +146,77 @@ class SQLiteManager:
     # ------------------------------------------------------------------
 
     def begin(self):
+        """
+        Begin an explicit transaction.
+        """
+
         with self._lock:
+
+            if self._in_transaction:
+                raise RuntimeError(
+                    "Transaction already active."
+                )
+
             self._connection.execute("BEGIN")
+
+            self._in_transaction = True
 
     # ------------------------------------------------------------------
 
     def commit(self):
+        """
+        Commit the current transaction.
+        """
+
         with self._lock:
+
+            if not self._in_transaction:
+                return
+
             self._connection.commit()
+
+            self._in_transaction = False
 
     # ------------------------------------------------------------------
 
     def rollback(self):
+        """
+        Roll back the current transaction.
+        """
+
         with self._lock:
+
+            if not self._in_transaction:
+                return
+
             self._connection.rollback()
+
+            self._in_transaction = False
+
+    # ------------------------------------------------------------------
+
+    @property
+    def in_transaction(self) -> bool:
+        """
+        Returns True if an explicit transaction is active.
+        """
+
+        return self._in_transaction
 
     # ------------------------------------------------------------------
 
     def close(self):
+        """
+        Close the database connection.
+        """
+
         with self._lock:
+
+            #
+            # Never leave an open transaction.
+            #
+            if self._in_transaction:
+                self._connection.rollback()
+                self._in_transaction = False
+
             self._connection.close()

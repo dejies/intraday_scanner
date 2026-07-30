@@ -3,10 +3,7 @@ from __future__ import annotations
 import csv
 import io
 
-from src.services.universe.clients.nse_download_service import (
-    NSEDownloadService,
-)
-from src.services.universe.config import NSEIndexConfig
+from src.services.universe.clients import NSEHttpClient
 from src.services.universe.models import (
     MarketUniverse,
     UniverseMembership,
@@ -17,22 +14,29 @@ from src.services.universe.providers.base_provider import (
 )
 
 
-class NSEIndexProvider(MarketUniverseProvider):
+class Nifty500Provider(MarketUniverseProvider):
+    """
+    Loads Nifty 500 constituents from NSE.
+    """
+
+    #
+    # Replace this with the verified
+    # official download URL.
+    #
+    DOWNLOAD_URL = "<NIFTY500_DOWNLOAD_URL>"
 
     def __init__(
         self,
-        downloader: NSEDownloadService,
-        config: NSEIndexConfig,
+        client: NSEHttpClient,
     ):
-        self._downloader = downloader
-        self._config = config
+        self._client = client
 
     # ---------------------------------------------------------
 
     def load(self) -> MarketUniverse:
 
-        csv_text = self._downloader.download_index(
-            self._config
+        csv_text = self._client.get_text(
+            self.DOWNLOAD_URL
         )
 
         reader = csv.DictReader(
@@ -70,7 +74,7 @@ class NSEIndexProvider(MarketUniverseProvider):
             universe.add_membership(
                 UniverseMembership(
                     symbol=symbol,
-                    index_name=self._config.index_name,
+                    index_name="NIFTY500",
                 )
             )
 

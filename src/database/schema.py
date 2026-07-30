@@ -76,6 +76,16 @@ CREATE TABLE IF NOT EXISTS universe_metadata
         )
     );
     """,
+    """
+    CREATE TABLE IF NOT EXISTS universe_indices
+    (
+        symbol TEXT NOT NULL,
+    
+        index_name TEXT NOT NULL,
+    
+        PRIMARY KEY(symbol, index_name)
+    )
+    """,
 ]
 
 # ----------------------------------------------------------------------

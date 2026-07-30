@@ -1,52 +1,71 @@
+from __future__ import annotations
+
 import requests
+
+from src.services.universe.config import NSEIndexConfig
 
 
 class NSEHttpClient:
     """
-    Handles communication with NSE.
+    Thin HTTP client for NSE.
 
-    Responsible for:
-        - maintaining session
-        - cookies
-        - request headers
+    Responsibilities
+    ----------------
+    - Download raw content from NSE
+    - Raise HTTP errors
 
-    Not responsible for:
-        - parsing
-        - business logic
+    Knows NOTHING about:
+    - MarketUniverse
+    - Repository
+    - Scanner
     """
 
     BASE_URL = "https://www.nseindia.com"
 
     def __init__(self):
+        self._headers = {
+            "User-Agent": "Mozilla/5.0",
+        }
 
-        self._session = requests.Session()
+    # ---------------------------------------------------------
 
-        self._session.headers.update(
-            {
-                "User-Agent":
-                    "Mozilla/5.0",
-                "Accept":
-                    "application/json,text/csv,*/*",
-                "Accept-Language":
-                    "en-US,en;q=0.9",
-                "Referer":
-                    "https://www.nseindia.com/",
-            }
-        )
+    def initialize(self):
+        """
+        Warm up connectivity to NSE.
+        """
 
-        # Establish cookies
-        self._session.get(
+        response = requests.get(
             self.BASE_URL,
-            timeout=15,
+            headers=self._headers,
+            timeout=20,
+            allow_redirects=True,
         )
 
-    def download(self, url: str) -> str:
+        response.raise_for_status()
 
-        response = self._session.get(
+    # ---------------------------------------------------------
+
+    def get(
+        self,
+        url: str,
+    ) -> str:
+
+        response = requests.get(
             url,
+            headers=self._headers,
             timeout=30,
+            allow_redirects=True,
         )
 
         response.raise_for_status()
 
         return response.text
+
+    # ---------------------------------------------------------
+
+    def download_csv(
+        self,
+        config: NSEIndexConfig,
+    ) -> str:
+
+        return self.get(config.page_url)

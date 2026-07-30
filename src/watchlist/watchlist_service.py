@@ -12,6 +12,11 @@ class WatchlistService:
     added / removed symbols.
     """
 
+    _EXCHANGE_MAP = {
+        "NSE": MarketFeed.NSE,
+        "BSE": MarketFeed.BSE,
+    }
+
     def __init__(
             self,
             universe_provider,
@@ -51,41 +56,6 @@ class WatchlistService:
 
         return subscriptions
 
-    def subscribe_symbols(
-            self,
-            subscriptions: list[tuple],
-    ):
-        """
-        Subscribe newly added instruments.
-        """
-
-        if not subscriptions:
-            return
-
-        self.logger.info(
-            "Subscribing %d instruments.",
-            len(subscriptions),
-        )
-
-        self.feed.subscribe_symbols(subscriptions)
-
-    def unsubscribe_symbols(
-            self,
-            subscriptions: list[tuple],
-    ):
-        """
-        Remove instruments from live feed.
-        """
-
-        if not subscriptions:
-            return
-
-        self.logger.info(
-            "Unsubscribing %d instruments.",
-            len(subscriptions),
-        )
-
-        self.feed.unsubscribe_symbols(subscriptions)
 
     @property
     def symbols(self) -> set[str]:
@@ -165,3 +135,14 @@ class WatchlistService:
 
     def get_instrument_by_security_id(self, security_id):
         return self._instrument_by_security_id.get(security_id)
+
+    def contains_security_id(
+            self,
+            security_id: int,
+    ) -> bool:
+        """
+        Returns True if the security is currently
+        part of the active watchlist.
+        """
+
+        return security_id in self._instrument_by_security_id

@@ -68,7 +68,8 @@ class UniverseSyncService:
                     symbol=stock.symbol,
                     company_name=stock.company_name,
                     security_id=str(instrument.security_id),
-                    exchange_segment=instrument.exchange_segment,
+                    exchange=instrument.exchange,
+                    segment=instrument.segment,
                 )
             )
 

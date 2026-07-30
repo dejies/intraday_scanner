@@ -1,17 +1,28 @@
 from __future__ import annotations
 
+import re
+from urllib.parse import urljoin
+
 from src.services.universe.clients import NSEHttpClient
 from src.services.universe.config import NSEIndexConfig
 
 
 class NSEDownloadService:
     """
-    Responsible for downloading raw CSV files from NSE.
+    Downloads raw CSV data for NSE indices.
+
+    Responsibilities
+    ----------------
+    1. Download the index page.
+    2. Locate the CSV download link.
+    3. Download the CSV.
+    4. Return CSV text.
 
     Knows NOTHING about:
     - Universe models
-    - Repository
+    - SQLite
     - Scanner
+    - Dashboard
     """
 
     def __init__(
@@ -26,17 +37,65 @@ class NSEDownloadService:
         self,
         config: NSEIndexConfig,
     ) -> str:
-        """
-        Returns raw CSV text for an index.
-        """
 
         #
-        # Future enhancement:
+        # Download HTML page
         #
-        # This method is the ONLY place that should
-        # know how to obtain the CSV.
-        #
+        html = self._client.get(
+            config.page_url
+        )
 
-        return self._client.download_csv(
-            config
+        #
+        # Locate CSV link
+        #
+        csv_url = self._extract_csv_url(
+            html,
+            config.page_url,
+        )
+
+        #
+        # Download CSV
+        #
+        return self._client.get(
+            csv_url
+        )
+
+    # ---------------------------------------------------------
+
+    def _extract_csv_url(
+        self,
+        html: str,
+        base_url: str,
+    ) -> str:
+
+        #
+        # Absolute URL
+        #
+        match = re.search(
+            r'https://[^"\']+\.csv',
+            html,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return match.group(0)
+
+        #
+        # Relative URL
+        #
+        match = re.search(
+            r'href=["\']([^"\']+\.csv)["\']',
+            html,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return urljoin(
+                base_url,
+                match.group(1),
+            )
+
+        raise RuntimeError(
+            "Unable to locate CSV download link "
+            f"for {base_url}"
         )

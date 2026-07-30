@@ -29,29 +29,32 @@ TABLES = [
         )
     );
     """,
-"""
-CREATE TABLE IF NOT EXISTS universe
-(
-    symbol              TEXT PRIMARY KEY,
 
-    company_name        TEXT NOT NULL,
+    """
+    CREATE TABLE IF NOT EXISTS universe
+    (
+        symbol          TEXT PRIMARY KEY,
 
-    security_id         TEXT,
+        company_name    TEXT NOT NULL,
 
-    exchange_segment    TEXT,
+        security_id     TEXT,
 
-    index_name          TEXT NOT NULL,
+        exchange        TEXT,
 
-    updated_at          INTEGER NOT NULL
-)
-""",
-"""
-CREATE TABLE IF NOT EXISTS universe_metadata
-(
-    key     TEXT PRIMARY KEY,
-    value   TEXT NOT NULL
-)
-""",
+        segment         TEXT,
+
+        updated_at      INTEGER NOT NULL
+    );
+    """,
+
+    """
+    CREATE TABLE IF NOT EXISTS universe_metadata
+    (
+        key     TEXT PRIMARY KEY,
+        value   TEXT NOT NULL
+    );
+    """,
+
     """
     CREATE TABLE IF NOT EXISTS indicators
     (
@@ -76,15 +79,16 @@ CREATE TABLE IF NOT EXISTS universe_metadata
         )
     );
     """,
+
     """
     CREATE TABLE IF NOT EXISTS universe_indices
     (
-        symbol TEXT NOT NULL,
-    
-        index_name TEXT NOT NULL,
-    
+        symbol      TEXT NOT NULL,
+
+        index_name  TEXT NOT NULL,
+
         PRIMARY KEY(symbol, index_name)
-    )
+    );
     """,
 ]
 
@@ -101,6 +105,7 @@ INDEXES = [
         interval
     );
     """,
+
     """
     CREATE INDEX IF NOT EXISTS idx_candle_time
     ON candles
@@ -108,6 +113,7 @@ INDEXES = [
         candle_time
     );
     """,
+
     """
     CREATE INDEX IF NOT EXISTS idx_indicator_lookup
     ON indicators
@@ -116,6 +122,22 @@ INDEXES = [
         timeframe,
         indicator,
         candle_time
+    );
+    """,
+
+    """
+    CREATE INDEX IF NOT EXISTS idx_universe_security
+    ON universe
+    (
+        security_id
+    );
+    """,
+
+    """
+    CREATE INDEX IF NOT EXISTS idx_universe_indices_symbol
+    ON universe_indices
+    (
+        symbol
     );
     """,
 ]

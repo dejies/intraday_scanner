@@ -7,6 +7,9 @@ from src.services.instrument_bootstrap_service import (
     InstrumentBootstrapService,
 )
 
+# Move this to config.py later
+BOOTSTRAP_BATCH_SIZE = 10
+
 
 class UniverseMonitor(threading.Thread):
 
@@ -16,9 +19,13 @@ class UniverseMonitor(threading.Thread):
         websocket_client,
         instrument_master_service,
         bootstrap_service: InstrumentBootstrapService,
+        state_service,
         interval: int = 2,
     ):
         super().__init__(daemon=True)
+
+        self._first_run = True
+        self._running = True
 
         self.watchlist_service = watchlist_service
         self.websocket_client = websocket_client
@@ -26,9 +33,9 @@ class UniverseMonitor(threading.Thread):
             instrument_master_service
         )
         self.bootstrap_service = bootstrap_service
+        self.state_service = state_service
 
         self.interval = interval
-        self._running = True
 
     # ---------------------------------------------------------
 
@@ -44,44 +51,50 @@ class UniverseMonitor(threading.Thread):
 
             try:
 
-                snapshot = self.watchlist_service.refresh()
+                #
+                # Refresh watchlist
+                #
+                if self._first_run:
+
+                    snapshot = self.watchlist_service.load()
+                    self._first_run = False
+
+                else:
+
+                    snapshot = self.watchlist_service.refresh()
 
                 #
-                # No changes.
+                # Bootstrap instruments that are not ready.
                 #
-                if (
-                    not snapshot.added
-                    and not snapshot.removed
-                ):
-                    end_time = time.time() + self.interval
+                initialized_symbols = []
 
-                    while self._running and time.time() < end_time:
-                        time.sleep(0.1)
-                    continue
+                initialized = 0
 
-                #
-                # Added
-                #
-                if snapshot.added:
+                for instrument in self.watchlist_service.get_all():
 
-                    for symbol in sorted(snapshot.added):
+                    if initialized >= BOOTSTRAP_BATCH_SIZE:
+                        break
 
-                        instrument = (
-                            self.instrument_master_service.get_by_symbol(
-                                symbol
-                            )
+                    #
+                    # initialize() returns True only when a new
+                    # instrument is successfully bootstrapped.
+                    #
+                    if self.bootstrap_service.initialize(
+                        instrument
+                    ):
+                        initialized_symbols.append(
+                            instrument.symbol
                         )
+                        initialized += 1
 
-                        if instrument is None:
-                            continue
-
-                        self.bootstrap_service.initialize(
-                            instrument
-                        )
+                #
+                # Subscribe newly initialized instruments.
+                #
+                if initialized_symbols:
 
                     added = (
                         self.watchlist_service.get_subscription_tuples(
-                            snapshot.added
+                            set(initialized_symbols)
                         )
                     )
 
@@ -91,7 +104,7 @@ class UniverseMonitor(threading.Thread):
                     )
 
                 #
-                # Removed
+                # Handle removals immediately.
                 #
                 if snapshot.removed:
 
@@ -129,5 +142,8 @@ class UniverseMonitor(threading.Thread):
 
             end_time = time.time() + self.interval
 
-            while self._running and time.time() < end_time:
+            while (
+                self._running
+                and time.time() < end_time
+            ):
                 time.sleep(0.1)

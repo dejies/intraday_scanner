@@ -9,20 +9,11 @@ from dataclasses import dataclass, field
 
 @dataclass(slots=True, frozen=True)
 class UniverseStock:
-    """
-    Represents one tradable stock in the market universe.
-
-    This model contains only stock metadata.
-    It does NOT contain index membership.
-    """
-
     symbol: str
-
     company_name: str
-
     security_id: str | None = None
-
-    exchange_segment: str | None = None
+    exchange: str | None = None
+    segment: str | None = None
 
 
 # ----------------------------------------------------------------------

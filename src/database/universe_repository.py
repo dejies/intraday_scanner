@@ -8,13 +8,6 @@ Responsibilities
 - Save memberships
 - Load universe
 - Clear tables
-
-Knows NOTHING about
-
-- NSE
-- Scanner
-- Dashboard
-- WebSocket
 """
 
 from __future__ import annotations
@@ -49,6 +42,7 @@ class UniverseRepository:
         self._sqlite.execute(TABLES[1])
         self._sqlite.execute(TABLES[2])
         self._sqlite.execute(TABLES[4])
+
     # ---------------------------------------------------------
 
     def save_stocks(
@@ -62,13 +56,14 @@ class UniverseRepository:
             symbol,
             company_name,
             security_id,
-            exchange_segment,
+            exchange,
+            segment,
             updated_at
         )
 
         VALUES
         (
-            ?,?,?,?,?
+            ?,?,?,?,?,?
         )
         """
 
@@ -80,7 +75,8 @@ class UniverseRepository:
                 stock.symbol,
                 stock.company_name,
                 stock.security_id,
-                stock.exchange_segment,
+                stock.exchange,
+                stock.segment,
                 now,
             )
 
@@ -159,7 +155,9 @@ class UniverseRepository:
 
                     security_id=row["security_id"],
 
-                    exchange_segment=row["exchange_segment"],
+                    exchange=row["exchange"],
+
+                    segment=row["segment"],
                 )
             )
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 import threading
 import time
 from PySide6.QtWidgets import QApplication
-
+from src.services.instrument_state_service import InstrumentStateService
 from src.services import InstrumentBootstrapService
 from src.providers.dhan.provider_factory import ProviderFactory
 from src.dashboard.dashboard_window import DashboardWindow
@@ -52,7 +52,6 @@ def main() -> None:
     sqlite = SQLiteManager(
         "data/intraday_scanner.db"
     )
-
     #
     # Repositories
     #
@@ -128,33 +127,12 @@ def main() -> None:
     print("=" * 70)
     print()
 
+
     watchlist = WatchlistService(
         universe_provider=universe,
         instrument_master_service=instrument_master,
     )
-
-    watchlist.load()
-
-    market_store.register_instruments(
-        watchlist.get_all()
-    )
-
-    #
-    # Load historical candles.
-    #
-    historical = HistoricalDataService(
-        market_data=market_data,
-        watchlist=watchlist,
-        candle_repository=candle_repository,
-        indicator_repository=indicator_repository,
-        indicator_service=indicator_service,
-        market_data_store=market_store,
-    )
-
-    historical.load()
-
     print()
-    print("Historical data loaded")
 
     #
     # Start WebSocket.
@@ -196,20 +174,33 @@ def main() -> None:
         gap_service=gap_service,
     )
 
+    historical = HistoricalDataService(
+        market_data=market_data,
+        watchlist=watchlist,
+        candle_repository=candle_repository,
+        indicator_repository=indicator_repository,
+        indicator_service=indicator_service,
+        market_data_store=market_store,
+    )
+
+    state_service = InstrumentStateService()
+
     bootstrap_service = InstrumentBootstrapService(
         market_data_store=market_store,
         candle_builder=candle_builder,
         historical_data_service=historical,
+        state_service=state_service,
         indicator_service=indicator_service,
         scanner=scanner,  # We'll adjust this in the next step
     )
 
     universe_monitor = UniverseMonitor(
-        watchlist_service=watchlist,
-        websocket_client=websocket,
-        instrument_master_service=instrument_master,
-        bootstrap_service=bootstrap_service,
-    )
+    watchlist_service=watchlist,
+    websocket_client=websocket,
+    instrument_master_service=instrument_master,
+    bootstrap_service=bootstrap_service,
+    state_service=state_service,
+)
 
     universe_monitor.start()
     app = QApplication([])

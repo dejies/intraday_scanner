@@ -43,12 +43,22 @@ class UniverseSyncService:
 
             provider_universe = provider.load()
 
+            symbols = sorted(provider_universe.stocks.keys())[:10]
+
+            print(
+                provider.__class__.__name__,
+                len(provider_universe.stocks),
+                symbols,
+            )
+
             for stock in provider_universe.stocks.values():
                 universe.add_stock(stock)
 
             for membership in provider_universe.memberships:
                 universe.add_membership(membership)
 
+        print("Unique stocks :", len(universe.stocks))
+        print("Memberships   :", len(universe.memberships))
         #
         # Resolve Dhan instrument IDs
         #
@@ -100,4 +110,5 @@ class UniverseSyncService:
             self._sqlite.rollback()
             raise
 
+        print("Resolved stocks:", len(resolved_stocks))
         return len(resolved_stocks)

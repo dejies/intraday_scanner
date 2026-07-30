@@ -45,6 +45,7 @@ class NSEDownloadService:
             config.page_url
         )
 
+        print("PAGE :", config.index_name, config.page_url)
         #
         # Locate CSV link
         #
@@ -53,6 +54,7 @@ class NSEDownloadService:
             config.page_url,
         )
 
+        print("CSV  :", csv_url)
         #
         # Download CSV
         #

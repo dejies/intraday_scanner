@@ -84,22 +84,12 @@ class BaseDhanProvider(
 
     def _build_subscription(self) -> list[tuple]:
         """
-        Build MarketFeed subscription list.
+        Initial subscription list.
+
+        UniverseMonitor dynamically subscribes instruments
+        after they have been initialized.
         """
-
-        instruments = []
-
-        for instrument in self.watchlist.get_all():
-
-            instruments.append(
-                (
-                    MarketFeed.NSE,
-                    str(instrument.security_id),
-                    MarketFeed.Full,
-                )
-            )
-
-        return instruments
+        return []
 
     # ------------------------------------------------------------------
 

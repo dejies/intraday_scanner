@@ -20,7 +20,7 @@ from src.engines.vwap_engine import VWAPEngine
 
 from src.models.candle import Candle
 from src.models.indicator import IndicatorData
-
+from src.engines.rvol_engine import RVOLEngine
 
 class IndicatorService:
     """
@@ -57,6 +57,8 @@ class IndicatorService:
 
         vwap = VWAPEngine.calculate(candles)
 
+        rvol_data = RVOLEngine.calculate(candles)
+
         return IndicatorData(
             ltp=float(latest.close),
 
@@ -84,8 +86,16 @@ class IndicatorService:
             atr14=None,
 
             # Volume
-            average_volume20=None,
-            relative_volume=None,
+            average_volume20=(
+                rvol_data.average_volume
+                if rvol_data
+                else None
+            ),
+            relative_volume=(
+                rvol_data.rvol
+                if rvol_data
+                else None
+            ),
 
             updated_at=datetime.utcnow(),
         )

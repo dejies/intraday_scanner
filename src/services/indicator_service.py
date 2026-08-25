@@ -19,6 +19,9 @@ from src.engines.gap_strength_engine import GapStrengthEngine
 from src.engines.macd_engine import MACDEngine
 from src.engines.rsi_engine import RSIEngine
 from src.engines.rvol_engine import RVOLEngine
+from src.engines.technical_confidence_engine import (
+    TechnicalConfidenceEngine,
+)
 from src.engines.volume_spike_engine import VolumeSpikeEngine
 from src.engines.vwap_engine import VWAPEngine
 
@@ -117,10 +120,13 @@ class IndicatorService:
             )
 
         # ------------------------------------------------------------------
-        # Result
+        # Build IndicatorData
+        #
+        # TechnicalConfidenceEngine consumes IndicatorData, so calculate
+        # the base indicator data first and then calculate confidence.
         # ------------------------------------------------------------------
 
-        return IndicatorData(
+        indicator_data = IndicatorData(
             ltp=float(latest.close),
 
             # Trend
@@ -211,3 +217,33 @@ class IndicatorService:
 
             updated_at=datetime.utcnow(),
         )
+
+        # ------------------------------------------------------------------
+        # Technical Confidence
+        # ------------------------------------------------------------------
+
+        technical_confidence = (
+            TechnicalConfidenceEngine.calculate(
+                indicator_data
+            )
+        )
+
+        # ------------------------------------------------------------------
+        # Add Technical Confidence to IndicatorData
+        # ------------------------------------------------------------------
+
+        if technical_confidence is not None:
+
+            indicator_data.technical_score = (
+                technical_confidence.score
+            )
+
+            indicator_data.technical_signal = (
+                technical_confidence.signal
+            )
+
+            indicator_data.technical_confidence = (
+                technical_confidence.confidence
+            )
+
+        return indicator_data

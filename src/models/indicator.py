@@ -61,3 +61,8 @@ class IndicatorData:
     gap_strength: str | None = None
     gap_atr_ratio: float | None = None
     gap_strength_score: int = 0
+
+    # Technical Confidence
+    technical_score: float = 0.0
+    technical_signal: str | None = None
+    technical_confidence: str | None = None

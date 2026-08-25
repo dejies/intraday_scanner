@@ -40,7 +40,7 @@ class UniverseModule:
         # HTTP Client
         #
         client = NSEHttpClient()
-        client.initialize()
+        # client.initialize()
 
         downloader = NSEDownloadService(client)
 

@@ -47,5 +47,10 @@ class IndicatorData:
     average_volume20: float | None = None
     relative_volume: float | None = None
 
+    # Volume Spike
+    has_volume_spike: bool | None = None
+    volume_spike_level: str | None = None
+    volume_spike_score: int = 0
+
     # Runtime
     updated_at: datetime | None = None

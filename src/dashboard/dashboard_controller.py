@@ -107,12 +107,27 @@ class DashboardController(QObject):
 
             signal = stock.active_signal
 
+            indicator = stock.indicator
+
             rows.append([
                 stock.instrument.symbol,
                 f"{tick.ltp:.2f}" if tick else "-",
                 f"{tick.ltp:.2f}" if tick else "-",
                 f"{signal.signal_price:.2f}" if signal else "-",
                 signal.strategy if signal else "-",
+
+                (
+                    f"{indicator.atr14:.2f}"
+                    if indicator and indicator.atr14 is not None
+                    else "-"
+                ),
+
+                (
+                    f"{indicator.relative_volume:.2f}"
+                    if indicator and indicator.relative_volume is not None
+                    else "-"
+                ),
+
                 f"{signal.confidence:.1f}" if signal else "-",
             ])
 
@@ -217,6 +232,11 @@ class DashboardController(QObject):
                     else "-"
                 ),
 
+                "atr14": (
+                    round(indicator.atr14, 2)
+                    if indicator and indicator.atr14 is not None
+                    else "-"
+                ),
                 #
                 # Intraday
                 #

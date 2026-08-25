@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from src.engines.volume_spike_engine import VolumeSpikeEngine
 from src.engines.adx_engine import ADXEngine
 from src.engines.ema_engine import EMAEngine
 from src.engines.macd_engine import MACDEngine
@@ -21,6 +22,7 @@ from src.engines.vwap_engine import VWAPEngine
 from src.models.candle import Candle
 from src.models.indicator import IndicatorData
 from src.engines.rvol_engine import RVOLEngine
+from src.engines.atr_engine import ATREngine
 
 class IndicatorService:
     """
@@ -55,9 +57,17 @@ class IndicatorService:
 
         adx14 = ADXEngine.calculate(candles)
 
+        atr14 = ATREngine.calculate(candles)
         vwap = VWAPEngine.calculate(candles)
 
         rvol_data = RVOLEngine.calculate(candles)
+
+        volume_spike = None
+
+        if rvol_data is not None:
+            volume_spike = VolumeSpikeEngine.calculate(
+                rvol_data.rvol
+            )
 
         return IndicatorData(
             ltp=float(latest.close),
@@ -83,7 +93,7 @@ class IndicatorService:
             vwap=vwap,
 
             # Volatility
-            atr14=None,
+            atr14=atr14,
 
             # Volume
             average_volume20=(
@@ -97,5 +107,22 @@ class IndicatorService:
                 else None
             ),
 
+            has_volume_spike=(
+                volume_spike.is_spike
+                if volume_spike
+                else None
+            ),
+
+            volume_spike_level=(
+                volume_spike.level
+                if volume_spike
+                else None
+            ),
+
+            volume_spike_score=(
+                volume_spike.score
+                if volume_spike
+                else 0
+            ),
             updated_at=datetime.utcnow(),
         )

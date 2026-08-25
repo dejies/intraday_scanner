@@ -28,13 +28,15 @@ class DashboardWindow(QMainWindow):
         "Current",
         "Signal",
         "Strategy",
+        "ATR",
+        "RVOL",
         "Confidence",
     )
 
     SELL_COLUMNS = BUY_COLUMNS
 
     SYMBOL_COLUMN = 0
-    CONFIDENCE_COLUMN = 5
+    CONFIDENCE_COLUMN = 7
 
     def __init__(self) -> None:
 

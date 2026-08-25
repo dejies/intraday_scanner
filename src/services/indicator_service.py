@@ -12,17 +12,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.engines.volume_spike_engine import VolumeSpikeEngine
 from src.engines.adx_engine import ADXEngine
+from src.engines.atr_engine import ATREngine
 from src.engines.ema_engine import EMAEngine
+from src.engines.gap_strength_engine import GapStrengthEngine
 from src.engines.macd_engine import MACDEngine
 from src.engines.rsi_engine import RSIEngine
+from src.engines.rvol_engine import RVOLEngine
+from src.engines.volume_spike_engine import VolumeSpikeEngine
 from src.engines.vwap_engine import VWAPEngine
 
 from src.models.candle import Candle
+from src.models.gap import Gap
 from src.models.indicator import IndicatorData
-from src.engines.rvol_engine import RVOLEngine
-from src.engines.atr_engine import ATREngine
+
 
 class IndicatorService:
     """
@@ -35,8 +38,9 @@ class IndicatorService:
     # ------------------------------------------------------------------
 
     def calculate(
-            self,
-            candles: list[Candle],
+        self,
+        candles: list[Candle],
+        gap: Gap | None = None,
     ) -> IndicatorData | None:
 
         if not candles:
@@ -44,10 +48,18 @@ class IndicatorService:
 
         latest = candles[-1]
 
+        # ------------------------------------------------------------------
+        # Trend
+        # ------------------------------------------------------------------
+
         ema9 = EMAEngine.ema9(candles)
         ema20 = EMAEngine.ema20(candles)
         ema50 = EMAEngine.ema50(candles)
         ema200 = EMAEngine.ema200(candles)
+
+        # ------------------------------------------------------------------
+        # Momentum
+        # ------------------------------------------------------------------
 
         rsi14 = RSIEngine.rsi14(candles)
 
@@ -55,19 +67,58 @@ class IndicatorService:
             MACDEngine.calculate(candles)
         )
 
+        # ------------------------------------------------------------------
+        # Trend Strength
+        # ------------------------------------------------------------------
+
         adx14 = ADXEngine.calculate(candles)
 
+        # ------------------------------------------------------------------
+        # Volatility
+        # ------------------------------------------------------------------
+
         atr14 = ATREngine.calculate(candles)
+
+        # ------------------------------------------------------------------
+        # Intraday
+        # ------------------------------------------------------------------
+
         vwap = VWAPEngine.calculate(candles)
 
+        # ------------------------------------------------------------------
+        # Volume
+        # ------------------------------------------------------------------
+
         rvol_data = RVOLEngine.calculate(candles)
+
+        # ------------------------------------------------------------------
+        # Volume Spike
+        # ------------------------------------------------------------------
 
         volume_spike = None
 
         if rvol_data is not None:
+
             volume_spike = VolumeSpikeEngine.calculate(
                 rvol_data.rvol
             )
+
+        # ------------------------------------------------------------------
+        # Gap Strength
+        # ------------------------------------------------------------------
+
+        gap_strength = None
+
+        if gap is not None and atr14 is not None:
+
+            gap_strength = GapStrengthEngine.calculate(
+                gap=gap,
+                atr14=atr14,
+            )
+
+        # ------------------------------------------------------------------
+        # Result
+        # ------------------------------------------------------------------
 
         return IndicatorData(
             ltp=float(latest.close),
@@ -101,12 +152,14 @@ class IndicatorService:
                 if rvol_data
                 else None
             ),
+
             relative_volume=(
                 rvol_data.rvol
                 if rvol_data
                 else None
             ),
 
+            # Volume Spike
             has_volume_spike=(
                 volume_spike.is_spike
                 if volume_spike
@@ -124,5 +177,37 @@ class IndicatorService:
                 if volume_spike
                 else 0
             ),
+
+            # Gap Strength
+            gap_percent=(
+                gap_strength.gap_percent
+                if gap_strength
+                else None
+            ),
+
+            gap_direction=(
+                gap_strength.direction
+                if gap_strength
+                else None
+            ),
+
+            gap_strength=(
+                gap_strength.strength
+                if gap_strength
+                else None
+            ),
+
+            gap_atr_ratio=(
+                gap_strength.gap_atr_ratio
+                if gap_strength
+                else None
+            ),
+
+            gap_strength_score=(
+                gap_strength.score
+                if gap_strength
+                else 0
+            ),
+
             updated_at=datetime.utcnow(),
         )

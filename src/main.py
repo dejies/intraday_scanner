@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import threading
 import time
+
 from PySide6.QtWidgets import QApplication
+
 from src.services.instrument_state_service import InstrumentStateService
 from src.services import InstrumentBootstrapService
 from src.providers.dhan.provider_factory import ProviderFactory
@@ -52,6 +54,7 @@ def main() -> None:
     sqlite = SQLiteManager(
         "data/intraday_scanner.db"
     )
+
     #
     # Repositories
     #
@@ -75,6 +78,7 @@ def main() -> None:
     gap_service = GapService(
         candle_repository=candle_repository,
     )
+
     candle_service = CandleService(
         builder=candle_builder,
         repository=candle_repository,
@@ -127,11 +131,11 @@ def main() -> None:
     print("=" * 70)
     print()
 
-
     watchlist = WatchlistService(
         universe_provider=universe,
         instrument_master_service=instrument_master,
     )
+
     print()
 
     #
@@ -143,6 +147,7 @@ def main() -> None:
         watchlist=watchlist,
         candle_service=candle_service,
     )
+
     print("Creating provider...")
 
     provider = ProviderFactory.create(
@@ -174,12 +179,16 @@ def main() -> None:
         gap_service=gap_service,
     )
 
+    #
+    # Historical Data
+    #
     historical = HistoricalDataService(
         market_data=market_data,
         watchlist=watchlist,
         candle_repository=candle_repository,
         indicator_repository=indicator_repository,
         indicator_service=indicator_service,
+        gap_service=gap_service,
         market_data_store=market_store,
     )
 
@@ -195,14 +204,15 @@ def main() -> None:
     )
 
     universe_monitor = UniverseMonitor(
-    watchlist_service=watchlist,
-    websocket_client=websocket,
-    instrument_master_service=instrument_master,
-    bootstrap_service=bootstrap_service,
-    state_service=state_service,
-)
+        watchlist_service=watchlist,
+        websocket_client=websocket,
+        instrument_master_service=instrument_master,
+        bootstrap_service=bootstrap_service,
+        state_service=state_service,
+    )
 
     universe_monitor.start()
+
     app = QApplication([])
 
     window = DashboardWindow()

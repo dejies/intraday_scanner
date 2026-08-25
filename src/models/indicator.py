@@ -54,3 +54,10 @@ class IndicatorData:
 
     # Runtime
     updated_at: datetime | None = None
+
+    # Gap
+    gap_percent: float | None = None
+    gap_direction: str | None = None
+    gap_strength: str | None = None
+    gap_atr_ratio: float | None = None
+    gap_strength_score: int = 0

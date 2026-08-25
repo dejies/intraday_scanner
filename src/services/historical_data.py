@@ -7,27 +7,26 @@ loads them into the shared MarketData store.
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timedelta
 import time
+from datetime import datetime, timedelta
+from decimal import Decimal
 
 from dhanhq import DhanContext
 from dhanhq import dhanhq
 
+from src.core.market_data_store import MarketDataStore
 from src.models.candle import Candle
+from src.models.candle_interval import CandleInterval
+from src.models.indicator_mapper import IndicatorMapper
 from src.models.instrument import Instrument
-
+from src.repositories import CandleRepository
+from src.repositories import IndicatorRepository
 from src.services.base_service import BaseService
+from src.services.gap_service import GapService
+from src.services.indicator_service import IndicatorService
 from src.services.market_data import MarketData
 from src.services.watchlist import WatchlistService
-from decimal import Decimal
 
-from src.models.candle_interval import CandleInterval
-from src.repositories import CandleRepository
-from src.services.indicator_service import IndicatorService
-from src.repositories import IndicatorRepository
-from src.core.market_data_store import MarketDataStore
-from src.models.indicator_mapper import IndicatorMapper
 
 class HistoricalDataService(BaseService):
     """
@@ -36,13 +35,14 @@ class HistoricalDataService(BaseService):
     """
 
     def __init__(
-            self,
-            market_data: MarketData,
-            watchlist: WatchlistService,
-            candle_repository: CandleRepository,
-            indicator_repository: IndicatorRepository,
-            indicator_service: IndicatorService,
-            market_data_store: MarketDataStore,
+        self,
+        market_data: MarketData,
+        watchlist: WatchlistService,
+        candle_repository: CandleRepository,
+        indicator_repository: IndicatorRepository,
+        indicator_service: IndicatorService,
+        gap_service: GapService,
+        market_data_store: MarketDataStore,
     ) -> None:
 
         super().__init__()
@@ -53,6 +53,7 @@ class HistoricalDataService(BaseService):
         self.candle_repository = candle_repository
         self.indicator_repository = indicator_repository
         self.indicator_service = indicator_service
+        self.gap_service = gap_service
         self.market_data_store = market_data_store
 
         self.context = DhanContext(
@@ -115,8 +116,8 @@ class HistoricalDataService(BaseService):
     # ------------------------------------------------------------------
 
     def load_symbol(
-            self,
-            instrument: Instrument,
+        self,
+        instrument: Instrument,
     ) -> None:
         """
         Load historical data for a single instrument.
@@ -146,8 +147,8 @@ class HistoricalDataService(BaseService):
     # ------------------------------------------------------------------
 
     def _load_symbol(
-            self,
-            instrument: Instrument,
+        self,
+        instrument: Instrument,
     ) -> None:
         """
         Download historical candles for a single instrument.
@@ -158,8 +159,8 @@ class HistoricalDataService(BaseService):
         max_retries = self.settings.retry_count
 
         for attempt in range(
-                1,
-                max_retries + 1,
+            1,
+            max_retries + 1,
         ):
 
             response = self._download_history(
@@ -170,7 +171,7 @@ class HistoricalDataService(BaseService):
             # Success.
             #
             if response.get(
-                    "status"
+                "status"
             ) == "success":
 
                 candles = self._convert_to_candles(
@@ -179,6 +180,7 @@ class HistoricalDataService(BaseService):
                 )
 
                 if candles:
+
                     self.market_data.add_candles(
                         instrument.symbol,
                         candles,
@@ -188,11 +190,39 @@ class HistoricalDataService(BaseService):
                         candles,
                     )
 
-                    indicator_data = self.indicator_service.calculate(
-                        candles,
+                    # --------------------------------------------------
+                    # Gap Detection
+                    # --------------------------------------------------
+                    #
+                    # GapService owns gap detection.
+                    # Process the completed candles so that the
+                    # first 09:15 candle can establish today's gap.
+                    #
+                    for candle in candles:
+                        self.gap_service.process_candle(
+                            candle,
+                        )
+
+                    # --------------------------------------------------
+                    # Gap Strength
+                    # --------------------------------------------------
+                    #
+                    # Retrieve the gap already calculated by
+                    # GapService and pass it to IndicatorService.
+                    #
+                    gap = self.gap_service.get(
+                        instrument.security_id,
+                    )
+
+                    indicator_data = (
+                        self.indicator_service.calculate(
+                            candles,
+                            gap,
+                        )
                     )
 
                     if indicator_data is not None:
+
                         records = IndicatorMapper.to_records(
                             security_id=instrument.security_id,
                             timeframe=CandleInterval.ONE_MINUTE.value,
@@ -208,6 +238,7 @@ class HistoricalDataService(BaseService):
                             instrument.security_id,
                             indicator_data,
                         )
+
                     self.logger.info(
                         "%s : Loaded %d candles.",
                         instrument.symbol,
@@ -234,9 +265,10 @@ class HistoricalDataService(BaseService):
             error_code = ""
 
             if isinstance(
-                    remarks,
-                    dict,
+                remarks,
+                dict,
             ):
+
                 error_code = remarks.get(
                     "error_code",
                     "",
@@ -246,8 +278,8 @@ class HistoricalDataService(BaseService):
             # Retry only on rate limiting.
             #
             if (
-                    error_code == "DH-904"
-                    and attempt < max_retries
+                error_code == "DH-904"
+                and attempt < max_retries
             ):
 
                 self.logger.warning(
@@ -283,11 +315,9 @@ class HistoricalDataService(BaseService):
 
     # ------------------------------------------------------------------
 
-    # ------------------------------------------------------------------
-
     def _download_history(
-            self,
-            instrument: Instrument,
+        self,
+        instrument: Instrument,
     ):
         """
         Download historical candles.
@@ -315,7 +345,7 @@ class HistoricalDataService(BaseService):
         # of days.
         #
         for i in range(
-                self.settings.historical_lookback_days
+            self.settings.historical_lookback_days
         ):
 
             day = today - timedelta(days=i)
@@ -360,16 +390,16 @@ class HistoricalDataService(BaseService):
                 #
                 for key in merged.keys():
                     merged[key] = (
-                            data[key]
-                            + merged[key]
+                        data[key]
+                        + merged[key]
                     )
 
             #
             # Enough candles collected?
             #
             if (
-                    len(merged["close"])
-                    >= self.settings.max_candles
+                len(merged["close"])
+                >= self.settings.max_candles
             ):
                 break
 
@@ -402,8 +432,8 @@ class HistoricalDataService(BaseService):
     # ------------------------------------------------------------------
 
     def _get_exchange_segment(
-            self,
-            instrument: Instrument,
+        self,
+        instrument: Instrument,
     ):
         """
         Convert Instrument exchange into the Dhan SDK
@@ -428,8 +458,8 @@ class HistoricalDataService(BaseService):
     # ------------------------------------------------------------------
 
     def _get_instrument_type(
-            self,
-            instrument: Instrument,
+        self,
+        instrument: Instrument,
     ) -> str:
         """
         Convert Instrument type into Dhan API value.
@@ -443,8 +473,8 @@ class HistoricalDataService(BaseService):
         # Equity
         #
         if (
-                "EQUITY" in instrument_type
-                or instrument.segment == "E"
+            "EQUITY" in instrument_type
+            or instrument.segment == "E"
         ):
             return "EQUITY"
 
@@ -452,8 +482,8 @@ class HistoricalDataService(BaseService):
         # Futures
         #
         if (
-                "FUTURE" in instrument_type
-                or instrument.segment == "D"
+            "FUTURE" in instrument_type
+            or instrument.segment == "D"
         ):
             return "FUTIDX"
 
@@ -461,7 +491,7 @@ class HistoricalDataService(BaseService):
         # Options
         #
         if (
-                "OPTION" in instrument_type
+            "OPTION" in instrument_type
         ):
             return "OPTIDX"
 
@@ -472,12 +502,10 @@ class HistoricalDataService(BaseService):
 
     # ------------------------------------------------------------------
 
-    # ------------------------------------------------------------------
-
     def _convert_to_candles(
-            self,
-            instrument: Instrument,
-            response: dict,
+        self,
+        instrument: Instrument,
+        response: dict,
     ) -> list[Candle]:
         """
         Convert Dhan historical response into Candle objects.
@@ -503,6 +531,7 @@ class HistoricalDataService(BaseService):
         for field in required_fields:
 
             if field not in data:
+
                 self.logger.warning(
                     "Historical response missing field '%s'.",
                     field,
@@ -523,15 +552,16 @@ class HistoricalDataService(BaseService):
         length = len(opens)
 
         if not all(
-                len(values) == length
-                for values in (
-                        highs,
-                        lows,
-                        closes,
-                        volumes,
-                        timestamps,
-                )
+            len(values) == length
+            for values in (
+                highs,
+                lows,
+                closes,
+                volumes,
+                timestamps,
+            )
         ):
+
             self.logger.error(
                 "Historical response contains inconsistent array lengths."
             )
